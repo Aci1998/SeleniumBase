@@ -1,8 +1,0 @@
-env: "prt"              #环境
-browser: chrome         #浏览器类型
-path: test_case         #运行路径
-title: demo             #报告名
-retry: 0                #失败重试次数
-thread: 5               #线程数量，支持多线程运行
-headless: True          #后台执行    True/False
-debug: False            #调试模式，若为True，线程数量必须为0
