@@ -134,109 +134,149 @@ class CoffeeCartTest(BaseCase):
 <summary> ▶️ How is <b>SeleniumBase</b> different from raw Selenium? (<b>click to expand</b>)</summary>
 <div>
 
-<p>💡 SeleniumBase is a Python framework for browser automation and testing. SeleniumBase uses <a href="https://www.w3.org/TR/webdriver2/#endpoints" target="_blank">Selenium/WebDriver</a> APIs, and incorporates test-runners such as <code translate="no">pytest</code>, <code translate="no">pynose</code>, and <code translate="no">behave</code> to provide organized structure, test discovery, test execution, test state (<i>eg. passed, failed, or skipped</i>), and command-line options for changing default settings (<i>such as choosing the browser to use</i>). With raw Selenium, you would need to set up your own options-parser for configuring tests from the command-line.</p>
+<p>💡 SeleniumBase is a Python framework for browser automation and testing. SeleniumBase uses <a href="https://www.w3.org/TR/webdriver2/#endpoints" target="_blank">Selenium/WebDriver</a> APIs and incorporates test-runners such as <code translate="no">pytest</code>, <code translate="no">pynose</code>, and <code translate="no">behave</code> to provide organized structure, test discovery, test execution, test state (<i>eg. passed, failed, or skipped</i>), and command-line options for changing default settings (<i>eg. browser selection</i>). With raw Selenium, you would need to set up your own options-parser for configuring tests from the command-line.</p>
 
-<p>💡 With raw Selenium, commands that use selectors need to specify the type of selector (eg. <code translate="no">"css selector", "button#myButton"</code>). With SeleniumBase, there's auto-detection between CSS Selectors and XPath, which means you don't need to specify the type of selector in your commands (<i>but optionally you could</i>).</p>
+<p>💡 SeleniumBase's driver manager gives you more control over automatic driver downloads. (Use <code translate="no">--driver-version=VER</code> with your <code translate="no">pytest</code> run command to specify the version.) By default, SeleniumBase will download a driver version that matches your major browser version if not set.</p>
 
-<p>💡 SeleniumBase methods often perform multiple actions in a single method call. For example, <code translate="no">self.type(selector,text)</code> does the following:<br />1. Waits for the element to be visible.<br />2. Waits for the element to be interactive.<br />3. Clears the text field.<br />4. Types in the new text.<br />5. Presses Enter/Submit if the text ends in <code translate="no">"\n"</code>.<br />With raw Selenium, those actions require multiple method calls.</p>
+<p>💡 SeleniumBase automatically detects between CSS Selectors and XPath, which means you don't need to specify the type of selector in your commands (<i>but optionally you could</i>).</p>
+
+<p>💡 SeleniumBase methods often perform multiple actions in a single method call. For example, <code translate="no">self.type(selector, text)</code> does the following:<br />1. Waits for the element to be visible.<br />2. Waits for the element to be interactive.<br />3. Clears the text field.<br />4. Types in the new text.<br />5. Presses Enter/Submit if the text ends in <code translate="no">"\n"</code>.<br />With raw Selenium, those actions require multiple method calls.</p>
 
 <p>💡 SeleniumBase uses default timeout values when not set:<br />
-✅<code translate="no">self.click("button")</code><br />
+✅ <code translate="no">self.click("button")</code><br />
 With raw Selenium, methods would fail instantly (<i>by default</i>) if an element needed more time to load:<br />
-❌<code translate="no">self.driver.find_element(by="css selector", value="button").click()</code><br />
+❌ <code translate="no">self.driver.find_element(by="css selector", value="button").click()</code><br />
 (Reliable code is better than unreliable code.)</p>
 
 <p>💡 SeleniumBase lets you change the explicit timeout values of methods:<br />
-✅<code translate="no">self.click("button",timeout=10)</code><br />
+✅ <code translate="no">self.click("button", timeout=10)</code><br />
 With raw Selenium, that requires more code:<br />
-❌<code translate="no">WebDriverWait(driver,10).until(EC.element_to_be_clickable("css selector", "button")).click()</code><br />
+❌ <code translate="no">WebDriverWait(driver, 10).until(EC.element_to_be_clickable("css selector", "button")).click()</code><br />
 (Simple code is better than complex code.)</p>
 
 <p>💡 SeleniumBase gives you clean error output when a test fails. With raw Selenium, error messages can get very messy.</p>
 
-<p>💡 SeleniumBase gives you the option to generate a dashboard and reports for tests. It also saves screenshots from failing tests to the <code translate="no">./latest_logs/</code> folder. Raw <a href="https://www.selenium.dev/documentation/webdriver/" target="_blank">Selenium</a> does not have these options out-of-the-box.</p>
+<p>💡 SeleniumBase gives you the option to generate a dashboard and reports for tests. It also saves screenshots from failing tests to the <code translate="no">./latest_logs/</code> folder. Raw <a href="https://www.selenium.dev/documentation/webdriver/" translate="no" target="_blank">Selenium</a> does not have these options out-of-the-box.</p>
 
-<p>💡 SeleniumBase includes desktop GUI apps for running tests, such as <b>SeleniumBase Commander</b> for <code translate="no">pytest</code> and <b>SeleniumBase Behave GUI for <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/behave_bdd/ReadMe.md"><code translate="no">behave</code></a>.</b></p>
+<p>💡 SeleniumBase includes desktop GUI apps for running tests, such as <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/help_docs/commander.md" translate="no">SeleniumBase Commander</a> for <code translate="no">pytest</code> and <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/behave_bdd/ReadMe.md" translate="no">SeleniumBase Behave GUI</a> for <code translate="no">behave</code>.</p>
 
-<p>💡 SeleniumBase has its own Recorder / Test Generator that can create tests from manual browser actions. SeleniumBase also includes other useful tools and console scripts for getting things done quickly. (<i>See the documentation for more details!</i>)</p>
+<p>💡 SeleniumBase has its own <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/help_docs/recorder_mode.md">Recorder / Test Generator</a> for creating tests from manual browser actions.</p>
+
+<p>💡 SeleniumBase comes with <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/help_docs/case_plans.md">test case management software, ("CasePlans")</a>, for organizing tests and step descriptions.</p>
+
+<p>💡 SeleniumBase includes tools for <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/chart_maker/ReadMe.md">building data apps, ("ChartMaker")</a>, which can generate JavaScript from Python.</p>
 
 </div>
 </details>
 
 --------
 
-<details>
-<summary> ▶️ Learn about different ways of writing tests (<b>click to expand</b>)</summary>
-<div>
+<p>📚 <b>Learn about different ways of writing tests:</b></p>
 
-<p align="left">📘📝 An example test with the <b>BaseCase</b> class. Runs with <b><a href="https://docs.pytest.org/en/latest/how-to/usage.html">pytest</a></b> or <b><a href="https://github.com/mdmintz/pynose">pynose</a></b>. (<a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/ReadMe.md">Learn more</a>)</p>
+<p align="left">📘📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_simple_login.py">example test</a> using <code translate="no"><a href="https://github.com/seleniumbase/SeleniumBase/blob/master/seleniumbase/fixtures/base_case.py">BaseCase</a></code> class inheritance. Runs with <b><a href="https://docs.pytest.org/en/latest/how-to/usage.html">pytest</a></b> or <b><a href="https://github.com/mdmintz/pynose">pynose</a></b>.  (<a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/ReadMe.md">Learn more</a>). (Use <code translate="no">self.driver</code> to access Selenium's raw <code translate="no">driver</code>.)</p>
 
 ```python
 from seleniumbase import BaseCase
 BaseCase.main(__name__, __file__)
 
-class TestMFALogin(BaseCase):
-    def test_mfa_login(self):
-        self.open("https://seleniumbase.io/realworld/login")
+class TestSimpleLogin(BaseCase):
+    def test_simple_login(self):
+        self.open("seleniumbase.io/simple/login")
         self.type("#username", "demo_user")
         self.type("#password", "secret_pass")
-        self.enter_mfa_code("#totpcode", "GAXG2MTEOR3DMMDG")  # 6-digit
+        self.click('a:contains("Sign in")')
         self.assert_exact_text("Welcome!", "h1")
         self.assert_element("img#image1")
-        self.click('a:contains("This Page")')
-        self.save_screenshot_to_logs()
+        self.highlight("#image1")
+        self.click_link("Sign out")
+        self.assert_text("signed out", "#top_message")
 ```
 
-<p align="left">📗📝 An example test with the <b><code translate="no">sb</code></b> <code translate="no">pytest</code> fixture. Runs with <b><a href="https://docs.pytest.org/en/latest/how-to/usage.html">pytest</a></b>.</p>
+<p align="left">📗📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/sb_fixture_tests.py">example test</a> using the <b><code translate="no">sb</code></b> <code translate="no">pytest</code> fixture. Runs with <b><a href="https://docs.pytest.org/en/latest/how-to/usage.html">pytest</a></b>. (Use <code translate="no">sb.driver</code> to access Selenium's raw <code translate="no">driver</code>.)</p>
 
 ```python
-def test_mfa_login(sb):
-    sb.open("https://seleniumbase.io/realworld/login")
+def test_sb_fixture_with_no_class(sb):
+    sb.open("seleniumbase.io/simple/login")
     sb.type("#username", "demo_user")
     sb.type("#password", "secret_pass")
-    sb.enter_mfa_code("#totpcode", "GAXG2MTEOR3DMMDG")  # 6-digit
+    sb.click('a:contains("Sign in")')
     sb.assert_exact_text("Welcome!", "h1")
     sb.assert_element("img#image1")
-    sb.click('a:contains("This Page")')
-    sb.save_screenshot_to_logs()
+    sb.highlight("#image1")
+    sb.click_link("Sign out")
+    sb.assert_text("signed out", "#top_message")
 ```
 
-<p align="left">📙📝 An example test with the <b><code translate="no">SB</code></b> Context Manager. Runs with pure <b><code translate="no">python</code></b>.</p>
+<p align="left">📙📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/raw_login_sb.py">example test</a> using the <b><code translate="no">SB</code></b> Context Manager. Runs with pure <b><code translate="no">python</code></b>. (Use <code translate="no">sb.driver</code> to access Selenium's raw <code translate="no">driver</code>.)</p>
 
 ```python
 from seleniumbase import SB
 
-with SB() as sb:  # By default, browser="chrome" if not set.
-    sb.open("https://seleniumbase.io/realworld/login")
+with SB() as sb:
+    sb.open("seleniumbase.io/simple/login")
     sb.type("#username", "demo_user")
     sb.type("#password", "secret_pass")
-    sb.enter_mfa_code("#totpcode", "GAXG2MTEOR3DMMDG")  # 6-digit
-    sb.assert_text("Welcome!", "h1")
-    sb.highlight("img#image1")  # A fancier assert_element() call
-    sb.click('a:contains("This Page")')  # Use :contains() on any tag
-    sb.click_link("Sign out")  # Link must be "a" tag. Not "button".
-    sb.assert_element('a:contains("Sign in")')
-    sb.assert_exact_text("You have been signed out!", "#top_message")
+    sb.click('a:contains("Sign in")')
+    sb.assert_exact_text("Welcome!", "h1")
+    sb.assert_element("img#image1")
+    sb.highlight("#image1")
+    sb.click_link("Sign out")
+    sb.assert_text("signed out", "#top_message")
 ```
 
-<p align="left">📕📝 An example test with <b>behave-BDD</b> <a href="https://behave.readthedocs.io/en/stable/gherkin.html#features" target="_blank">Gherkin</a> structure. Runs with <b><code translate="no">behave</code></b>. (<a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/behave_bdd/ReadMe.md">Learn more</a>)</p>
+<p align="left">📔📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/raw_login_context.py">example test</a> using the <b><code translate="no">DriverContext</code></b> Manager. Runs with pure <b><code translate="no">python</code></b>. (The <code translate="no">driver</code> is an improved version of Selenium's raw <code translate="no">driver</code>, with more methods.)</p>
+
+```python
+from seleniumbase import DriverContext
+
+with DriverContext() as driver:
+    driver.open("seleniumbase.io/simple/login")
+    driver.type("#username", "demo_user")
+    driver.type("#password", "secret_pass")
+    driver.click('a:contains("Sign in")')
+    driver.assert_exact_text("Welcome!", "h1")
+    driver.assert_element("img#image1")
+    driver.highlight("#image1")
+    driver.click_link("Sign out")
+    driver.assert_text("signed out", "#top_message")
+```
+
+<p align="left">📔📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/raw_login_driver.py">example test</a> using the <b><code translate="no">Driver</code></b> Manager. Runs with pure <b><code translate="no">python</code></b>. (The <code>driver</code> is an improved version of Selenium's raw <code translate="no">driver</code>, with more methods.)</p>
+
+```python
+from seleniumbase import Driver
+
+driver = Driver()
+try:
+    driver.open("seleniumbase.io/simple/login")
+    driver.type("#username", "demo_user")
+    driver.type("#password", "secret_pass")
+    driver.click('a:contains("Sign in")')
+    driver.assert_exact_text("Welcome!", "h1")
+    driver.assert_element("img#image1")
+    driver.highlight("#image1")
+    driver.click_link("Sign out")
+    driver.assert_text("signed out", "#top_message")
+finally:
+    driver.quit()
+```
+
+<p align="left">📕📝 An <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/behave_bdd/features/login_app.feature"> example test</a> using <b translate="no">behave-BDD</b> <a href="https://behave.readthedocs.io/en/stable/gherkin.html#features" target="_blank">Gherkin</a> syntax. Runs with <b><code translate="no">behave</code></b>. (<a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/behave_bdd/ReadMe.md">Learn more</a>)</p>
 
 ```gherkin
-Feature: SeleniumBase scenarios for the RealWorld App
+Feature: SeleniumBase scenarios for the Simple App
 
-  Scenario: Verify RealWorld App
-    Given Open "seleniumbase.io/realworld/login"
-    When Type "demo_user" into "#username"
+  Scenario: Verify the Simple App (Login / Logout)
+    Given Open "seleniumbase.io/simple/login"
+    And Type "demo_user" into "#username"
     And Type "secret_pass" into "#password"
-    And Do MFA "GAXG2MTEOR3DMMDG" into "#totpcode"
-    Then Assert exact text "Welcome!" in "h1"
+    And Click 'a:contains("Sign in")'
+    And Assert exact text "Welcome!" in "h1"
     And Assert element "img#image1"
-    And Click 'a:contains("This Page")'
-    And Save screenshot to logs
+    And Highlight "#image1"
+    And Click link "Sign out"
+    And Assert text "signed out" in "#top_message"
 ```
-
-</div>
-</details>
 
 --------
 
@@ -332,7 +372,7 @@ COMMANDS:
 
 <div></div>
 <details>
-<summary> ▶️ Here's output from a chromedriver download. (<b>click to expand</b>)</summary>
+<summary> ▶️ Here's sample output from a chromedriver download. (<b>click to expand</b>)</summary>
 
 ```bash
 *** chromedriver to download = 116.0.5845.96 (Latest Stable) 
@@ -639,6 +679,7 @@ pytest test_coffee_cart.py --trace
 --message-duration=SECONDS  # (The time length for Messenger alerts.)
 --check-js  # (Check for JavaScript errors after page loads.)
 --ad-block  # (Block some types of display ads from loading.)
+--host-resolver-rules=RULES  # (Set host-resolver-rules, comma-separated.)
 --block-images  # (Block images from loading during tests.)
 --do-not-track  # (Indicate to websites that you don't want to be tracked.)
 --verify-delay=SECONDS  # (The delay before MasterQA verification checks.)
@@ -653,12 +694,13 @@ pytest test_coffee_cart.py --trace
 --enable-sync  # (Enable "Chrome Sync" on websites.)
 --uc | --undetected  # (Use undetected-chromedriver to evade bot-detection.)
 --uc-cdp-events  # (Capture CDP events when running in "--undetected" mode.)
+--log-cdp  # ("goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"})
 --remote-debug  # (Sync to Chrome Remote Debugger chrome://inspect/#devices)
---final-debug  # (Enter Debug Mode after each test ends. Don't use with CI!)
+--ftrace | --final-trace  # (Debug Mode after each test. Don't use with CI!)
 --dashboard  # (Enable the SeleniumBase Dashboard. Saved at: dashboard.html)
 --dash-title=STRING  # (Set the title shown for the generated dashboard.)
 --enable-3d-apis  # (Enables WebGL and 3D APIs.)
---swiftshader  # (Use Chrome's "--use-gl=swiftshader" feature.)
+--swiftshader  # (Chrome "--use-gl=angle" / "--use-angle=swiftshader-webgl")
 --incognito  # (Enable Chrome's Incognito mode.)
 --guest  # (Enable Chrome's Guest mode.)
 --dark  # (Enable Chrome's Dark mode.)
@@ -865,7 +907,7 @@ behave behave_bdd/features/ -D dashboard -D headless
 
 <img src="https://seleniumbase.github.io/cdn/img/sb_behave_dashboard.png" title="SeleniumBase" width="500">
 
-You can also use ``--junit`` to get ``.xml`` reports for each Behave feature. Jenkins can use these files to display better reporting for your tests.
+You can also use ``--junit`` to get ``.xml`` reports for each <code translate="no">behave</code> feature. Jenkins can use these files to display better reporting for your tests.
 
 ```bash
 behave behave_bdd/features/ --junit -D rs -D headless
@@ -1339,7 +1381,7 @@ pytest --reruns=1 --reruns-delay=1
 
 <div><a href="https://github.com/seleniumbase/SeleniumBase/"><img src="https://seleniumbase.github.io/cdn/img/fancy_logo_14.png" title="SeleniumBase" width="240" /></a></div> <div><a href="https://seleniumbase.io"><img src="https://img.shields.io/badge/docs-seleniumbase.io-11BBAA.svg" alt="SeleniumBase Docs" /></a></div> <div><a href="https://github.com/seleniumbase/SeleniumBase"><img src="https://img.shields.io/badge/tested%20with-SeleniumBase-04C38E.svg" alt="Tested with SeleniumBase" /></a></div> <div><a href="https://github.com/seleniumbase/SeleniumBase/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-22BBCC.svg" title="SeleniumBase" /></a> <a href="https://gitter.im/seleniumbase/SeleniumBase" target="_blank"><img src="https://img.shields.io/gitter/room/seleniumbase/SeleniumBase.svg" alt="Gitter chat"/></a></div>
 <div><a href="https://pepy.tech/project/seleniumbase" target="_blank"><img src="https://static.pepy.tech/badge/seleniumbase" alt="SeleniumBase PyPI downloads" /></a></div>
-<div><a href="https://github.com/seleniumbase/SeleniumBase"><img src="https://hits.dwyl.com/seleniumbase/hits.svg" alt="visitor badge"/></a> (since Sep 15, 2023)</div>
+<div><a href="https://github.com/seleniumbase/SeleniumBase"><img src="https://hits.dwyl.com/seleniumbase/hits.svg" alt="visitor badge"/></a></div>
 <div><a href="https://github.com/seleniumbase/SeleniumBase/stargazers"><img src="https://img.shields.io/github/stars/seleniumbase/seleniumbase.svg?color=19A57B" title="Stargazers" /></a></div>
 
 --------

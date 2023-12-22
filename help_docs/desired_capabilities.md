@@ -2,7 +2,7 @@
 
 ## [<img src="https://seleniumbase.github.io/img/logo6.png" title="SeleniumBase" width="32">](https://github.com/seleniumbase/SeleniumBase/) Using Desired Capabilities
 
-You can specify browser capabilities when running SeleniumBase tests on a remote Selenium Grid server such as <a href="https://www.browserstack.com/automate/capabilities" target="_blank">BrowserStack</a> or <a href="https://wiki.saucelabs.com/display/DOCS/Platform+Configurator#/" target="_blank">Sauce Labs</a>.
+You can specify browser capabilities when running SeleniumBase tests on a remote Selenium Grid server such as <a href="https://www.browserstack.com/automate/capabilities" target="_blank">BrowserStack</a> or <a href="https://saucelabs.com/products/platform-configurator" target="_blank">Sauce Labs</a>.
 
 Sample run commands may look like this when run from the [SeleniumBase/examples/](https://github.com/seleniumbase/SeleniumBase/tree/master/examples) folder: (The browser is now specified in the capabilities file.)
 
@@ -41,13 +41,13 @@ capabilities = {
 }
 ```
 
-(Note that the browser is now being specified in the capabilities file, rather than with ``--browser=BROWSER`` when using a **remote** Selenium Grid. If using a **local** Selenium Grid, specify the browser, eg: ``--browser=chrome`` or ``--browser=firefox``.)
+(Note that the browser is now being specified in the capabilities file, rather than with ``--BROWSER`` when using a **remote** Selenium Grid. If using a **local** Selenium Grid, specify the browser, eg: ``--firefox``.)
 
 <div><b>You can generate specific desired capabilities using:</b></div>
 
 <ul>
     <li><a href="https://www.browserstack.com/automate/capabilities" target="_blank">BrowserStack desired capabilities</a></li>
-    <li><a href="https://wiki.saucelabs.com/display/DOCS/Platform+Configurator#/" target="_blank">Sauce Labs desired capabilities</a></li>
+    <li><a href="https://saucelabs.com/products/platform-configurator" target="_blank">Sauce Labs desired capabilities</a></li>
 </ul>
 
 <div><b>Parsing desired capabilities:</b></div>
@@ -65,7 +65,7 @@ caps['KEY'] = False
 
 (Each pair must be on a separate line. You can interchange single and double quotes.)
 
-You can also swap ``--browser=remote`` with an actual browser, eg ``--browser=chrome``, which will combine the default SeleniumBase desired capabilities with those that were specified in the capabilities file when using ``--cap_file=FILE.py``. Capabilities will override other parameters, so if you set the browser to one thing and the capabilities browser to another, SeleniumBase will use the capabilities browser as the browser.
+You can also swap ``--browser=remote`` with an actual browser, eg ``--browser=chrome``, which will combine the default SeleniumBase desired capabilities with those that were specified in the capabilities file when using ``--cap_file=FILE.py``. Capabilities will override other parameters, so if you set the browser to one thing and the capabilities browser to another, SeleniumBase will use the capabilities browser.
 
 You'll need default SeleniumBase capabilities for:
 * Using a proxy server (not the same as a Selenium Grid server)
@@ -74,8 +74,7 @@ You'll need default SeleniumBase capabilities for:
 * Overriding a website's Content Security Policy on Chrome
 * Other possible reasons
 
-You can also set browser desired capabilities from a command line string:
-Example:
+You can also set browser desired capabilities from a command-line string. Eg:
 
 ```bash
 pytest test_swag_labs.py --cap-string='{"browserName":"chrome","name":"test1"}' --server="127.0.0.1" --browser=remote

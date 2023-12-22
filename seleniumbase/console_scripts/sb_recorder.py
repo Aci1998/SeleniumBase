@@ -24,6 +24,9 @@ from seleniumbase.fixtures import shared_utils
 
 sb_config.rec_subprocess_p = None
 sb_config.rec_subprocess_used = False
+sys_executable = sys.executable
+if " " in sys_executable:
+    sys_executable = "python"
 if sys.version_info <= (3, 7):
     current_version = ".".join(str(ver) for ver in sys.version_info[:3])
     raise Exception(
@@ -42,7 +45,13 @@ def set_colors(use_colors):
     c4 = ""
     cr = ""
     if use_colors:
-        colorama.init(autoreset=True)
+        if (
+            "win32" in sys.platform
+            and hasattr(colorama, "just_fix_windows_console")
+        ):
+            colorama.just_fix_windows_console()
+        else:
+            colorama.init(autoreset=True)
         c0 = colorama.Fore.BLUE + colorama.Back.LIGHTCYAN_EX
         c1 = colorama.Fore.BLUE + colorama.Back.LIGHTGREEN_EX
         c2 = colorama.Fore.RED + colorama.Back.LIGHTYELLOW_EX
@@ -133,17 +142,17 @@ def do_recording(file_name, url, overwrite_enabled, use_chrome, window):
             add_on = " --rec-behave"
         command = (
             "%s -m seleniumbase mkrec %s --url=%s --gui"
-            % (sys.executable, file_name, url)
+            % (sys_executable, file_name, url)
         )
         if '"' not in url:
             command = (
                 '%s -m seleniumbase mkrec %s --url="%s" --gui'
-                % (sys.executable, file_name, url)
+                % (sys_executable, file_name, url)
             )
         elif "'" not in url:
             command = (
                 "%s -m seleniumbase mkrec %s --url='%s' --gui"
-                % (sys.executable, file_name, url)
+                % (sys_executable, file_name, url)
             )
         if not use_chrome:
             command += " --edge"
@@ -179,7 +188,7 @@ def do_playback(file_name, use_chrome, window, demo_mode=False):
             'File "%s" does not exist in the current directory!' % file_name,
         )
         return
-    command = "%s -m pytest %s -q -s" % (sys.executable, file_name)
+    command = "%s -m pytest %s -q -s" % (sys_executable, file_name)
     if shared_utils.is_linux():
         command += " --gui"
     if not use_chrome:

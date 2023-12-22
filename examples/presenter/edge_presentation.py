@@ -25,19 +25,24 @@ class EdgePresentationClass(BaseCase):
         self.open("data:,")
         self.open("https://www.bostoncodecamp.com/CC34/Schedule/SessionGrid")
         self.highlight("h2", loops=8)
-        self.highlight('div[data-sessionid="467776"]', loops=10)
-        self.create_tour(theme="driverjs")
-        self.add_tour_step("<h2>Here we are</h2>", '[data-sessionid="467776"]')
-        self.play_tour()
-        self.click('a[onclick*="467776"]')
-        self.create_tour(theme="hopscotch")
-        self.add_tour_step(
-            "<h2>What to expect</h2>", "div.sz-modal-session", alignment="left"
-        )
-        self.play_tour()
-        self.sleep(0.25)
+        if self.is_element_visible('[data-sessionid="467776"]'):
+            self.highlight('div[data-sessionid="467776"]', loops=10)
+            self.create_tour(theme="driverjs")
+            self.add_tour_step(
+                "<h2>Here we are</h2>", '[data-sessionid="467776"]'
+            )
+            self.play_tour()
+            self.click('a[onclick*="467776"]')
+            self.create_tour(theme="hopscotch")
+            self.add_tour_step(
+                "<h2>What to expect</h2>",
+                "div.sz-modal-session",
+                alignment="left",
+            )
+            self.play_tour()
+            self.sleep(0.25)
         self.open("data:,")
-        self.create_presentation(theme="sky", transition="fade")
+        self.create_presentation(theme="beige", transition="fade")
         self.add_slide(
             "<p><b>About the presenter:</b></p>\n"
             "<ul>\n"
@@ -129,8 +134,12 @@ class EdgePresentationClass(BaseCase):
         self.highlight(
             'img[srcset*="logo"] + div span:nth-of-type(2)', loops=16
         )
-        self.highlight('span[aria-live="assertive"]', loops=8)
+        if self.is_element_visible('span[aria-live="assertive"]'):
+            self.highlight('span[aria-live="assertive"]', loops=8)
+        elif self.is_element_visible('a[href*="fwlink"]'):
+            self.highlight('a[href*="fwlink"]', loops=8)
         self.highlight('a[href*="chromium"]')
+        self.highlight('a[href*="credits"]')
         self.quit_extra_driver()
 
         self.switch_to_default_driver()
@@ -144,24 +153,40 @@ class EdgePresentationClass(BaseCase):
         self.play_tour()
         self.highlight('[href*="microsoft-edge/tools/webdriver"]')
 
-        self.get_new_driver(browser="edge")
+        self.get_new_driver(browser="edge", disable_csp=True)
         self.maximize_window()
         self.open(
             "https://developer.microsoft.com/en-us/"
             "microsoft-edge/tools/webdriver/"
         )
-        self.wait_for_element("#page-heading")
-        self.scroll_to("#page-heading")
-        zoom_in = '#page-heading{zoom: 1.2;-moz-transform: scale(1.2);}'
+        self.wait_for_element("div.common-heading")
+        self.scroll_to("div.common-heading")
+        zoom_in = 'div.h1{zoom: 1.02;-moz-transform: scale(1.02);}'
         self.add_css_style(zoom_in)
-        self.highlight("#page-heading", loops=8)
-        self.sleep(1.2)
-        self.highlight("#downloads-channel", loops=8)
-        self.sleep(1.2)
-        self.highlight("#downloads", loops=12)
-        self.sleep(1.8)
-        self.highlight("#installation", loops=12)
-        self.sleep(1.8)
+        self.highlight("div.common-heading", loops=8)
+        self.create_tour(theme="driverjs")
+        self.add_tour_step(
+            "", "div.common-heading", alignment="left"
+        )
+        self.play_tour()
+        self.highlight('div[data-fetch-key="block-web-driver:0"]', loops=12)
+        self.create_tour(theme="driverjs")
+        self.add_tour_step(
+            "", 'div[data-fetch-key="block-web-driver:0"]', alignment="top"
+        )
+        self.play_tour()
+        self.highlight('div[data-fetch-key="block-web-driver:1"]', loops=12)
+        self.create_tour(theme="driverjs")
+        self.add_tour_step(
+            "", 'div[data-fetch-key="block-web-driver:1"]', alignment="top"
+        )
+        self.play_tour()
+        self.highlight('section[data-section-id="installation"]', loops=12)
+        self.create_tour(theme="driverjs")
+        self.add_tour_step(
+            "", "div.block-heading--sixtyforty", alignment="left"
+        )
+        self.play_tour()
         self.quit_extra_driver()
 
         self.switch_to_default_driver()
@@ -226,96 +251,16 @@ class EdgePresentationClass(BaseCase):
             "<p>What are some building blocks?</p>\n"
             "<hr /><br />\n",
             code=(
-                "<mark>from selenium import webdriver</mark>\n\n"
-                "driver = webdriver.Edge()\n\n"
-                'driver.get("http://selenium.dev")\n\n'
-                "element = driver.find_element"
+                "<mk-0>from selenium import webdriver</mk-0>\n\n"
+                "<mk-1>driver = webdriver.Edge()</mk-1>\n\n"
+                '<mk-2>driver.get("http://selenium.dev")</mk-2>\n\n'
+                "<mk-3>element = driver.find_element"
                 '("css selector", "#docsearch span")\n\n'
-                "element.click()\n\n"
-                "elem_2 = driver.find_element"
+                "element.click()</mk-3>\n\n"
+                "<mk-4>elem_2 = driver.find_element"
                 '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")\n\n'
-                "driver.quit()\n\n"
-            ),
-        )
-        self.add_slide(
-            "<p>What are some building blocks?</p>\n"
-            "<hr /><br />\n",
-            code=(
-                "from selenium import webdriver\n\n"
-                "<mark>driver = webdriver.Edge()</mark>\n\n"
-                'driver.get("http://selenium.dev")\n\n'
-                "element = driver.find_element"
-                '("css selector", "#docsearch span")\n\n'
-                "element.click()\n\n"
-                "elem_2 = driver.find_element"
-                '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")\n\n'
-                "driver.quit()\n\n"
-            ),
-        )
-        self.add_slide(
-            "<p>What are some building blocks?</p>\n"
-            "<hr /><br />\n",
-            code=(
-                "from selenium import webdriver\n\n"
-                "driver = webdriver.Edge()\n\n"
-                '<mark>driver.get("http://selenium.dev")</mark>\n\n'
-                "element = driver.find_element"
-                '("css selector", "#docsearch span")\n\n'
-                "element.click()\n\n"
-                "elem_2 = driver.find_element"
-                '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")\n\n'
-                "driver.quit()\n\n"
-            ),
-        )
-        self.add_slide(
-            "<p>What are some building blocks?</p>\n"
-            "<hr /><br />\n",
-            code=(
-                "from selenium import webdriver\n\n"
-                "driver = webdriver.Edge()\n\n"
-                'driver.get("http://selenium.dev")\n\n'
-                "<mark>element = driver.find_element"
-                '("css selector", "#docsearch span")\n\n'
-                "element.click()</mark>\n\n"
-                "elem_2 = driver.find_element"
-                '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")\n\n'
-                "driver.quit()\n\n"
-            ),
-        )
-        self.add_slide(
-            "<p>What are some building blocks?</p>\n"
-            "<hr /><br />\n",
-            code=(
-                "from selenium import webdriver\n\n"
-                "driver = webdriver.Edge()\n\n"
-                'driver.get("http://selenium.dev")\n\n'
-                "element = driver.find_element"
-                '("css selector", "#docsearch span")\n\n'
-                "element.click()\n\n"
-                "<mark>elem_2 = driver.find_element"
-                '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")</mark>\n\n'
-                "driver.quit()\n\n"
-            ),
-        )
-        self.add_slide(
-            "<p>What are some building blocks?</p>\n"
-            "<hr /><br />\n",
-            code=(
-                "from selenium import webdriver\n\n"
-                "driver = webdriver.Edge()\n\n"
-                'driver.get("http://selenium.dev")\n\n'
-                "element = driver.find_element"
-                '("css selector", "#docsearch span")\n\n'
-                "element.click()\n\n"
-                "elem_2 = driver.find_element"
-                '("css selector", "#docsearch-input")\n\n'
-                'elem_2.send_keys("Python")\n\n'
-                "<mark>driver.quit()</mark>\n\n"
+                'elem_2.send_keys("Python")</mk-4>\n\n'
+                "<mk-5>driver.quit()</mk-5>\n\n"
             ),
         )
         self.add_slide(
@@ -364,31 +309,17 @@ class EdgePresentationClass(BaseCase):
             "without extra libraries or frameworks?</p><hr />"
             "<p><br />\n"
             "The command statements can get a bit too long:</p>\n"
-            "<p><code><mark>"
+            "<p><code><mk-0>"
             "driver.find_element(By.CSS_SELECTOR, CSS_SELECTOR).click()"
-            "</code></mark></p><br />"
+            "</code></mk-0></p><br />"
             "<p>This is better:</p>"
-            "<p><code>self.click(CSS_SELECTOR)</code><p><br />",
+            "<p><code><mk-1>self.click(CSS_SELECTOR)</mk-1></code><p><br />",
         )
         self.add_slide(
             "<p>What are some disadvantages of using <b>raw</b> Selenium "
-            "without extra libraries or frameworks?</p><hr />"
-            "<p><br />\n"
-            "The command statements can get a bit too long:</p>\n"
-            "<p><code>"
-            "driver.find_element(By.CSS_SELECTOR, CSS_SELECTOR).click()"
-            "</code></p><br />"
-            "<p>This is better:</p>"
-            "<p><code><mark>self.click(CSS_SELECTOR)</mark></code><p><br />",
-        )
-        self.add_slide(
-            "<p>What are some disadvantages of using <b>raw</b> Selenium "
-            "without extra libraries or frameworks?</p><hr />"
-            "<br /><mark>\n"
-            "No HTML reports, dashboards, screenshots..."
-            "</mark><br />"
-            "<p>A test framework can provide those!</p>"
-            "<br />",
+            "without extra libraries or frameworks?</p><hr /><br />\n"
+            "<mark>No HTML reports, dashboards, screenshots...</mark><br />"
+            "<p>A test framework can provide those!</p><br />",
         )
         self.add_slide(
             "<h6>Raw Selenium disadvantages, continued...</h6><hr />"
@@ -397,34 +328,16 @@ class EdgePresentationClass(BaseCase):
             image="https://seleniumbase.io/cdn/img/dash_report.png",
         )
         self.add_slide(
-            "<p>Raw Selenium disadvantages, continued...</p><hr />\n"
-            "<br />\n"
-            "<p><mark>It takes multiple lines of code to do simple tasks:"
-            "</mark></p>\n"
-            "<pre>\n"
+            "<p>Raw Selenium disadvantages, continued...</p><hr />\n<br />\n"
+            "<p><mk-0>It takes multiple lines of code to do simple tasks:"
+            "</mk-0></p>\n<pre>\n"
             'element = driver.find_element("css selector", "#password")\n'
             "element.clear()\n"
             'element.send_keys("secret_sauce")\n'
             'element.submit()\n'
-            "</pre>\n"
-            "<br />\n"
-            "<p>But with a framework, do all that in ONE line:</p>\n"
-            '<pre>self.type("#password", "secret_sauce\\n")</pre>'
-        )
-        self.add_slide(
-            "<p>Raw Selenium disadvantages, continued...</p><hr />\n"
-            "<br />\n"
-            "<p>It takes multiple lines of code to do simple tasks:</p>\n"
-            "<pre>\n"
-            'element = driver.find_element("css selector", "#password")\n'
-            "element.clear()\n"
-            'element.send_keys("secret_sauce")\n'
-            'element.submit()\n'
-            "</pre>\n"
-            "<br />\n"
-            "<p><mark>But with a framework, do all that in ONE line:"
-            "</mark></p>\n"
-            '<pre>self.type("#password", "secret_sauce\\n")</pre>'
+            "</pre>\n<br />\n"
+            "<p><mk-1>But with a framework, do all that in ONE line:</mk-1>"
+            '</p>\n<pre>self.type("#password", "secret_sauce\\n")</pre>'
         )
         self.add_slide(
             "<p>What else can test frameworks provide?</p><hr />\n"
@@ -586,7 +499,7 @@ class EdgePresentationClass(BaseCase):
         self.assert_text("Skype for Mobile", "h2")
         self.highlight("h2")
         self.highlight("#get-skype-0")
-        self.highlight_click('[data-bi-name="arrow-dropdown-mobile"]')
+        self.highlight_click("span[data-dropdown-icon]")
         self.highlight("#get-skype-0_android-download")
         self.highlight('[data-bi-id*="ios"]')
         self.quit_extra_driver()
@@ -708,11 +621,11 @@ class EdgePresentationClass(BaseCase):
             '<span class="str">'
             '  (Slow down the automation. Faster than Demo Mode.)'
             '</span>\n'
-            '<span class="kwd">--reuse-session / --rs</span>'
+            '<span class="kwd">--rs / --reuse-session</span>'
             '<span class="str">'
             '  (Reuse browser session for tests.)'
             '</span>\n'
-            '<span class="kwd">--reuse-class-session / --rcs</span>'
+            '<span class="kwd">--rcs / --reuse-class-session</span>'
             '<span class="str">'
             '  (RS, but for class tests.)'
             '</span>\n'
@@ -756,7 +669,7 @@ class EdgePresentationClass(BaseCase):
             '<span class="str">'
             '  (Create a detailed pytest-html report.)'
             '</span>\n'
-            '<span class="kwd">--collect-only / --co</span>'
+            '<span class="kwd">--co / --collect-only</span>'
             '<span class="str">'
             '  (Only show discovered tests. No run.)'
             '</span>\n'

@@ -111,7 +111,7 @@ def is_jquery_activated(driver):
 
 def wait_for_jquery_active(driver, timeout=None):
     if not timeout:
-        timeout = 22
+        timeout = 2
     else:
         timeout = int(timeout * 10.0)
     for x in range(timeout):
@@ -778,7 +778,7 @@ def activate_messenger(driver):
 
     if not is_jquery_activated(driver):
         add_js_link(driver, jquery_js)
-        wait_for_jquery_active(driver, timeout=1)
+        wait_for_jquery_active(driver, timeout=1.1)
     add_css_link(driver, messenger_css)
     add_css_link(driver, msgr_theme_flat_css)
     add_css_link(driver, msgr_theme_future_css)
@@ -863,14 +863,15 @@ def set_messenger_theme(
     try:
         driver.execute_script(msg_style)
     except Exception:
-        time.sleep(0.05)
+        time.sleep(0.03)
         activate_messenger(driver)
-        time.sleep(0.05)
+        time.sleep(0.15)
         try:
             driver.execute_script(msg_style)
+            time.sleep(0.02)
         except Exception:
             pass
-    time.sleep(0.1)
+    time.sleep(0.05)
 
 
 def post_message(driver, message, msg_dur=None, style="info"):
@@ -894,11 +895,11 @@ def post_message(driver, message, msg_dur=None, style="info"):
         try:
             driver.execute_script(messenger_script)
         except Exception:
-            time.sleep(0.2)
+            time.sleep(0.17)
             activate_messenger(driver)
-            time.sleep(0.2)
+            time.sleep(0.17)
             set_messenger_theme(driver)
-            time.sleep(0.3)
+            time.sleep(0.27)
             driver.execute_script(messenger_script)
 
 
@@ -910,7 +911,7 @@ def post_messenger_success_message(driver, message, msg_dur=None):
         theme = "future"
         location = "bottom_right"
         if hasattr(sb_config, "mobile_emulator") and sb_config.mobile_emulator:
-            location = "top_center"
+            location = "top_right"
         set_messenger_theme(driver, theme=theme, location=location)
         post_message(driver, message, msg_dur, style="success")
         time.sleep(msg_dur + 0.07)

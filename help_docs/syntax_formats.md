@@ -118,10 +118,10 @@ The pytest framework comes with a unique system called fixtures, which replaces 
 
 ```python
 def test_sb_fixture_with_no_class(sb):
-    sb.open("https://google.com/ncr")
-    sb.type('[title="Search"]', 'SeleniumBase\n')
-    sb.click('a[href*="github.com/seleniumbase/SeleniumBase"]')
-    sb.click('a[title="seleniumbase"]')
+    sb.open("seleniumbase.io/help_docs/install/")
+    sb.type('input[aria-label="Search"]', "GUI Commander")
+    sb.click('mark:contains("Commander")')
+    sb.assert_title_contains("GUI / Commander")
 ```
 
 (See the top of <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_sb_fixture.py">examples/test_sb_fixture.py</a> for the test.)
@@ -134,10 +134,10 @@ The <code translate="no">sb</code> pytest fixture can also be used inside of a c
 ```python
 class Test_SB_Fixture:
     def test_sb_fixture_inside_class(self, sb):
-        sb.open("https://google.com/ncr")
-        sb.type('[title="Search"]', 'SeleniumBase\n')
-        sb.click('a[href*="github.com/seleniumbase/SeleniumBase"]')
-        sb.click('a[title="examples"]')
+        sb.open("seleniumbase.io/help_docs/install/")
+        sb.type('input[aria-label="Search"]', "GUI Commander")
+        sb.click('mark:contains("Commander")')
+        sb.assert_title_contains("GUI / Commander")
 ```
 
 (See the bottom of <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_sb_fixture.py">examples/test_sb_fixture.py</a> for the test.)
@@ -302,6 +302,7 @@ def sb(request):
     from selenium import webdriver
     from seleniumbase import BaseCase
     from seleniumbase import config as sb_config
+    from seleniumbase.core import session_helper
 
     class BaseClass(BaseCase):
         def get_new_driver(self, *args, **kwargs):
@@ -326,6 +327,11 @@ def sb(request):
             super().tearDown()
 
     if request.cls:
+        if sb_config.reuse_class_session:
+            the_class = str(request.cls).split(".")[-1].split("'")[0]
+            if the_class != sb_config._sb_class:
+                session_helper.end_reused_class_session_as_needed()
+                sb_config._sb_class = the_class
         request.cls.sb = BaseClass("base_method")
         request.cls.sb.setUp()
         request.cls.sb._needs_tearDown = True
@@ -444,6 +450,8 @@ class 我的测试类(硒测试用例):
         self.开启("https://zh.wikipedia.org/wiki/")
         self.断言标题("维基百科，自由的百科全书")
         self.断言元素('a[title="Wikipedia:关于"]')
+        self.断言元素('span:contains("创建账号")')
+        self.断言元素('span:contains("登录")')
         self.断言文本("新闻动态", "span#新闻动态")
         self.输入文本('input[name="search"]', "舞龍")
         self.单击('button:contains("搜索")')
@@ -877,18 +885,18 @@ This pure Python format gives you a raw <code translate="no">webdriver</code> in
 from seleniumbase import DriverContext
 
 with DriverContext() as driver:
-    driver.get("https://seleniumbase.github.io/")
+    driver.open("seleniumbase.github.io/")
     driver.highlight('img[alt="SeleniumBase"]', loops=6)
 
 with DriverContext(browser="chrome", incognito=True) as driver:
-    driver.get("https://seleniumbase.io/apps/calculator")
+    driver.open("seleniumbase.io/apps/calculator")
     driver.click('[id="4"]')
     driver.click('[id="2"]')
     driver.assert_text("42", "#output")
     driver.highlight("#output", loops=6)
 
 with DriverContext() as driver:
-    driver.get("https://seleniumbase.github.io/demo_page")
+    driver.open("seleniumbase.github.io/demo_page")
     driver.highlight("h2")
     driver.type("#myTextInput", "Automation")
     driver.click("#checkBox1")
@@ -908,7 +916,7 @@ from seleniumbase import Driver
 
 driver = Driver(browser="chrome", headless=False)
 try:
-    driver.get("https://seleniumbase.io/apps/calculator")
+    driver.open("seleniumbase.io/apps/calculator")
     driver.click('[id="4"]')
     driver.click('[id="2"]')
     driver.assert_text("42", "#output")
@@ -918,7 +926,7 @@ finally:
 
 driver = Driver()
 try:
-    driver.get("https://seleniumbase.github.io/demo_page")
+    driver.open("seleniumbase.github.io/demo_page")
     driver.highlight("h2")
     driver.type("#myTextInput", "Automation")
     driver.click("#checkBox1")
@@ -929,7 +937,45 @@ finally:
 
 (From <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/raw_browser_launcher.py">examples/raw_browser_launcher.py</a>)
 
-The above format can be used as a drop-in replacement for virtually every Python/selenium framework, as it uses the raw ``driver`` instance for handling commands. The ``Driver()`` method simplifies the work of managing drivers with optimal settings, and it can be configured via multiple method args. The Driver also accepts command-line options (such as ``python --headless``) so that you don't need to modify your tests directly to use different settings. These command-line options only take effect if the associated method args remain unset (or set to ``None``) for the specified options.
+Here's how the [selenium-wire](https://github.com/wkeeling/selenium-wire) integration may look when using the ``Driver()`` format:
+
+```python
+from seleniumbase import Driver
+
+driver = Driver(wire=True, headless=True)
+try:
+    driver.get("https://wikipedia.org")
+    for request in driver.requests:
+        print(request.url)
+finally:
+    driver.quit()
+```
+
+Here's an example of basic login with the ``Driver()`` format:
+
+```python
+from seleniumbase import Driver
+
+driver = Driver()
+try:
+    driver.open("seleniumbase.io/simple/login")
+    driver.type("#username", "demo_user")
+    driver.type("#password", "secret_pass")
+    driver.click('a:contains("Sign in")')
+    driver.assert_exact_text("Welcome!", "h1")
+    driver.assert_element("img#image1")
+    driver.highlight("#image1")
+    driver.click_link("Sign out")
+    driver.assert_text("signed out", "#top_message")
+finally:
+    driver.quit()
+```
+
+(From <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/raw_login_driver.py">examples/raw_login_driver.py</a>)
+
+The ``Driver()`` manager format can be used as a drop-in replacement for virtually every Python/selenium framework, as it uses the raw ``driver`` instance for handling commands. The ``Driver()`` method simplifies the work of managing drivers with optimal settings, and it can be configured with multiple args. The ``Driver()`` also accepts command-line options (such as ``python --headless``) so that you don't need to modify your tests directly to use different settings. These command-line options only take effect if the associated method args remain unset (or set to ``None``) for the specified options.
+
+When using the ``Driver()`` format, you may need to activate a Virtual Display on your own if you want to run headed tests in a headless Linux environment. (See https://github.com/mdmintz/sbVirtualDisplay for details.) One such example of this is using an authenticated proxy, which is configured via a Chrome extension that is generated at runtime. (Note that regular headless mode in Chrome doesn't support extensions.)
 
 --------
 

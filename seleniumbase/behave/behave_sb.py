@@ -75,6 +75,7 @@ behave -D agent="User Agent String" -D demo
 -D enable-sync  (Enable "Chrome Sync".)
 -D uc | -D undetected  (Use undetected-chromedriver to evade bot-detection)
 -D uc-cdp-events  (Capture CDP events when running in "-D undetected" mode)
+-D log-cdp  ("goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"})
 -D remote-debug  (Sync to Chrome Remote Debugger chrome://inspect/#devices)
 -D dashboard  (Enable the SeleniumBase Dashboard. Saved at: dashboard.html)
 -D dash-title=STRING  (Set the title shown for the generated dashboard.)
@@ -111,6 +112,8 @@ from seleniumbase.core import session_helper
 from seleniumbase.fixtures import constants
 from seleniumbase.fixtures import shared_utils
 
+is_linux = shared_utils.is_linux()
+is_windows = shared_utils.is_windows()
 sb_config.__base_class = None
 
 
@@ -179,6 +182,7 @@ def get_configured_sb(context):
     sb.undetectable = False
     sb.uc_cdp_events = False
     sb.uc_subprocess = False
+    sb.log_cdp_events = False
     sb.no_sandbox = False
     sb.disable_gpu = False
     sb._multithreaded = False
@@ -226,6 +230,7 @@ def get_configured_sb(context):
     sb.proxy_bypass_list = None
     sb.proxy_pac_url = None
     sb.multi_proxy = False
+    sb.host_resolver_rules = None
     sb.enable_3d_apis = False
     sb.swiftshader = False
     sb.ad_block_on = False
@@ -547,6 +552,10 @@ def get_configured_sb(context):
             sb.uc_subprocess = True
             sb.undetectable = True
             continue
+        # Handle: -D log-cdp-events / log_cdp_events / log-cdp
+        if low_key in ["log-cdp-events", "log_cdp_events", "log-cdp"]:
+            sb.log_cdp_events = True
+            continue
         # Handle: -D no-sandbox / no_sandbox
         if low_key in ["no-sandbox", "no_sandbox"]:
             sb.no_sandbox = True
@@ -764,6 +773,13 @@ def get_configured_sb(context):
         if low_key in ["multi-proxy", "multi_proxy"]:
             sb.multi_proxy = True
             continue
+        # Handle: -D host-resolver-rules=RULES / host_resolver_rules=RULES
+        if low_key in ["host-resolver-rules", "host_resolver_rules"]:
+            host_resolver_rules = userdata[key]
+            if host_resolver_rules == "true":
+                host_resolver_rules = sb.host_resolver_rules
+            sb.host_resolver_rules = host_resolver_rules
+            continue
         # Handle: -D enable-3d-apis / enable_3d_apis
         if low_key in ["enable-3d-apis", "enable_3d_apis"]:
             sb.enable_3d_apis = True
@@ -829,10 +845,10 @@ def get_configured_sb(context):
             '\n  (Your browser choice was: "%s")\n' % sb.browser
         )
     # The Xvfb virtual display server is for Linux OS Only.
-    if sb.xvfb and not shared_utils.is_linux():
+    if sb.xvfb and not is_linux:
         sb.xvfb = False
     if (
-        shared_utils.is_linux()
+        is_linux
         and not sb.headed
         and not sb.headless
         and not sb.headless2
@@ -1020,7 +1036,7 @@ def dashboard_pre_processing():
     filename = None
     feature_name = None
     scenario_name = None
-    if shared_utils.is_windows():
+    if is_windows:
         output = output.decode("latin1")
     else:
         output = output.decode("utf-8")
@@ -1129,8 +1145,11 @@ def behave_dashboard_prepare():
         stars = "*" * star_len
         c1 = ""
         cr = ""
-        if not shared_utils.is_linux():
-            colorama.init(autoreset=True)
+        if not is_linux:
+            if is_windows and hasattr(colorama, "just_fix_windows_console"):
+                colorama.just_fix_windows_console()
+            else:
+                colorama.init(autoreset=True)
             c1 = colorama.Fore.BLUE + colorama.Back.LIGHTCYAN_EX
             cr = colorama.Style.RESET_ALL
         print("Dashboard: %s%s%s\n%s" % (c1, dash_path, cr, stars))
@@ -1144,7 +1163,7 @@ def _perform_behave_unconfigure_():
         if sb_config.shared_driver:
             try:
                 if (
-                    not shared_utils.is_windows()
+                    not is_windows
                     or sb_config.browser == "ie"
                     or sb_config.shared_driver.service.process
                 ):
@@ -1221,7 +1240,7 @@ def do_final_driver_cleanup_as_needed():
     try:
         if hasattr(sb_config, "last_driver") and sb_config.last_driver:
             if (
-                not shared_utils.is_windows()
+                not is_windows
                 or sb_config.browser == "ie"
                 or sb_config.last_driver.service.process
             ):
@@ -1245,8 +1264,11 @@ def _perform_behave_terminal_summary_():
     equals = "=" * (equals_len + 2)
     c2 = ""
     cr = ""
-    if not shared_utils.is_linux():
-        colorama.init(autoreset=True)
+    if not is_linux:
+        if is_windows and hasattr(colorama, "just_fix_windows_console"):
+            colorama.just_fix_windows_console()
+        else:
+            colorama.init(autoreset=True)
         c2 = colorama.Fore.MAGENTA + colorama.Back.LIGHTYELLOW_EX
         cr = colorama.Style.RESET_ALL
     if sb_config.dashboard:

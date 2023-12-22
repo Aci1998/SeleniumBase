@@ -9,7 +9,7 @@ from seleniumbase.fixtures import shared_utils
 
 
 class SeleniumBrowser(Plugin):
-    """This plugin adds the following command-line options to nosetests:
+    """This plugin adds the following command-line options to pynose:
     --browser=BROWSER  (The web browser to use. Default: "chrome".)
     --chrome  (Shortcut for "--browser=chrome". Default.)
     --edge  (Shortcut for "--browser=edge".)
@@ -55,6 +55,7 @@ class SeleniumBrowser(Plugin):
     --message-duration=SECONDS  (The time length for Messenger alerts.)
     --check-js  (Check for JavaScript errors after page loads.)
     --ad-block  (Block some types of display ads from loading.)
+    --host-resolver-rules=RULES  (Set host-resolver-rules, comma-separated.)
     --block-images  (Block images from loading during tests.)
     --do-not-track  (Indicate to websites that you don't want to be tracked.)
     --verify-delay=SECONDS  (The delay before MasterQA verification checks.)
@@ -69,10 +70,10 @@ class SeleniumBrowser(Plugin):
     --enable-sync  (Enable "Chrome Sync" on websites.)
     --uc | --undetected  (Use undetected-chromedriver to evade bot-detection.)
     --uc-cdp-events  (Capture CDP events when running in "--undetected" mode.)
+    --log-cdp  ("goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"})
     --remote-debug  (Sync to Chrome Remote Debugger chrome://inspect/#devices)
-    --final-debug  (Enter Debug Mode after each test ends. Don't use with CI!)
     --enable-3d-apis  (Enables WebGL and 3D APIs.)
-    --swiftshader  (Use Chrome's "--use-gl=swiftshader" feature.)
+    --swiftshader  (Chrome "--use-gl=angle" / "--use-angle=swiftshader-webgl")
     --incognito  (Enable Chrome's Incognito mode.)
     --guest  (Enable Chrome's Guest mode.)
     --dark  (Enable Chrome's Dark mode.)
@@ -297,7 +298,7 @@ class SeleniumBrowser(Plugin):
             help="""Designates the three device metrics of the mobile
                     emulator: CSS Width, CSS Height, and Pixel-Ratio.
                     Format: A comma-separated string with the 3 values.
-                    Example: "375,734,3"
+                    Examples: "375,734,5" or "411,731,3" or "390,715,3"
                     Default: None. (Will use default values if None)""",
         )
         parser.addoption(
@@ -529,8 +530,8 @@ class SeleniumBrowser(Plugin):
             dest="message_duration",
             default=None,
             help="""Setting this overrides the default time that
-                    messenger notifications remain visible when reaching
-                    assert statements during Demo Mode.""",
+                    messenger notifications remain visible when
+                    reaching assert statements during Demo Mode.""",
         )
         parser.addoption(
             "--check_js",
@@ -552,6 +553,25 @@ class SeleniumBrowser(Plugin):
             default=False,
             help="""Using this makes WebDriver block display ads
                     that are defined in ad_block_list.AD_BLOCK_LIST.""",
+        )
+        parser.addoption(
+            "--host_resolver_rules",
+            "--host-resolver-rules",
+            action="store",
+            dest="host_resolver_rules",
+            default=None,
+            help="""Use this option to set "host-resolver-rules".
+                    This lets you re-map traffic from any domain.
+                    Eg. "MAP www.google-analytics.com 0.0.0.0".
+                    Eg. "MAP * ~NOTFOUND , EXCLUDE myproxy".
+                    Eg. "MAP * 0.0.0.0 , EXCLUDE 127.0.0.1".
+                    Eg. "MAP *.google.com myproxy".
+                    Find more examples on these pages:
+                    (https://www.electronjs.org/docs/
+                     latest/api/command-line-switches)
+                    (https://www.chromium.org/developers/
+                     design-documents/network-stack/socks-proxy/)
+                    Use comma-separation for multiple host rules.""",
         )
         parser.addoption(
             "--block_images",
@@ -731,7 +751,8 @@ class SeleniumBrowser(Plugin):
             action="store_true",
             dest="no_sandbox",
             default=False,
-            help="""Using this enables the "No Sandbox" feature.
+            help="""(DEPRECATED) - "--no-sandbox" is always used now.
+                    Using this enables the "No Sandbox" feature.
                     (This setting is now always enabled by default.)""",
         )
         parser.addoption(
@@ -740,8 +761,20 @@ class SeleniumBrowser(Plugin):
             action="store_true",
             dest="disable_gpu",
             default=False,
-            help="""Using this enables the "Disable GPU" feature.
-                    (This setting is now always enabled by default.)""",
+            help="""(DEPRECATED) - GPU is disabled if no swiftshader.
+                    Using this enables the "Disable GPU" feature.
+                    (GPU is disabled by default if swiftshader off.)""",
+        )
+        parser.addoption(
+            "--log_cdp",
+            "--log-cdp",
+            "--log_cdp_events",
+            "--log-cdp-events",
+            action="store_true",
+            dest="log_cdp_events",
+            default=None,
+            help="""Capture CDP events. Then you can print them.
+                    Eg. print(driver.get_log("performance"))""",
         )
         parser.addoption(
             "--remote_debug",
@@ -756,19 +789,6 @@ class SeleniumBrowser(Plugin):
                     chrome://inspect/#devices while tests are running.
                     The previous URL was at: http://localhost:9222/
                     Info: chromedevtools.github.io/devtools-protocol/""",
-        )
-        parser.addoption(
-            "--final-debug",
-            "--final-trace",
-            "--fdebug",
-            "--ftrace",
-            action="store_true",
-            dest="final_debug",
-            default=False,
-            help="""Enter Debug Mode at the end of each test.
-                    To enter Debug Mode only on failures, use "--pdb".
-                    If using both "--final-debug" and "--pdb" together,
-                    then Debug Mode will activate twice on failures.""",
         )
         parser.addoption(
             "--enable_3d_apis",
@@ -1090,6 +1110,7 @@ class SeleniumBrowser(Plugin):
         test.test.message_duration = self.options.message_duration
         test.test.js_checking_on = self.options.js_checking_on
         test.test.ad_block_on = self.options.ad_block_on
+        test.test.host_resolver_rules = self.options.host_resolver_rules
         test.test.block_images = self.options.block_images
         test.test.do_not_track = self.options.do_not_track
         test.test.verify_delay = self.options.verify_delay  # MasterQA
@@ -1117,6 +1138,7 @@ class SeleniumBrowser(Plugin):
         test.test.use_auto_ext = self.options.use_auto_ext
         test.test.undetectable = self.options.undetectable
         test.test.uc_cdp_events = self.options.uc_cdp_events
+        test.test.log_cdp_events = self.options.log_cdp_events
         if test.test.uc_cdp_events and not test.test.undetectable:
             test.test.undetectable = True
         test.test.uc_subprocess = self.options.uc_subprocess
@@ -1125,9 +1147,8 @@ class SeleniumBrowser(Plugin):
         test.test.no_sandbox = self.options.no_sandbox
         test.test.disable_gpu = self.options.disable_gpu
         test.test.remote_debug = self.options.remote_debug
-        test.test._final_debug = self.options.final_debug
         test.test.enable_3d_apis = self.options.enable_3d_apis
-        test.test.swiftshader = self.options.swiftshader
+        test.test._swiftshader = self.options.swiftshader
         test.test.incognito = self.options.incognito
         test.test.guest_mode = self.options.guest_mode
         test.test.dark_mode = self.options.dark_mode
@@ -1178,16 +1199,6 @@ class SeleniumBrowser(Plugin):
             )
             self.options.use_wire = False
             test.test.use_wire = False
-        if self.options.mobile_emulator and self.options.undetectable:
-            print(
-                "\n"
-                "SeleniumBase doesn't support mixing --uc with --mobile.\n"
-                "(Only UC Mode without Mobile will be used for this run)\n"
-            )
-            self.options.mobile_emulator = False
-            test.test.mobile_emulator = False
-            self.options.user_agent = None
-            test.test.user_agent = None
         # Recorder Mode can still optimize scripts in --headless2 mode.
         if self.options.recorder_mode and self.options.headless:
             self.options.headless = False
@@ -1220,6 +1231,7 @@ class SeleniumBrowser(Plugin):
         sb_config._SMALL_TIMEOUT = settings.SMALL_TIMEOUT
         sb_config._LARGE_TIMEOUT = settings.LARGE_TIMEOUT
         sb_config._context_of_runner = False  # Context Manager Compatibility
+        sb_config.mobile_emulator = self.options.mobile_emulator
         sb_config.proxy_driver = self.options.proxy_driver
         sb_config.multi_proxy = self.options.multi_proxy
         # The driver will be received later

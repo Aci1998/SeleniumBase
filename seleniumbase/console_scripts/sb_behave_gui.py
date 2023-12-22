@@ -38,7 +38,13 @@ def set_colors(use_colors):
     c6 = ""
     cr = ""
     if use_colors:
-        colorama.init(autoreset=True)
+        if (
+            shared_utils.is_windows()
+            and hasattr(colorama, "just_fix_windows_console")
+        ):
+            colorama.just_fix_windows_console()
+        else:
+            colorama.init(autoreset=True)
         c0 = colorama.Fore.BLUE + colorama.Back.LIGHTCYAN_EX
         c1 = colorama.Fore.BLUE + colorama.Back.LIGHTGREEN_EX
         c2 = colorama.Fore.RED + colorama.Back.LIGHTYELLOW_EX
@@ -78,7 +84,7 @@ def do_behave_run(
         if selected_tests[selected_test].get():
             total_selected_tests += 1
 
-    full_run_command = "%s -m behave" % sys.executable
+    full_run_command = '"%s" -m behave' % sys.executable
     if total_selected_tests == 0 or total_tests == total_selected_tests:
         if command_string:
             full_run_command += " "
@@ -177,7 +183,10 @@ def do_behave_run(
 def create_tkinter_gui(tests, command_string, t_count, f_count, s_tests):
     root = tk.Tk()
     root.title("SeleniumBase Behave Commander | GUI for Behave")
-    root.minsize(820, 656)
+    if shared_utils.is_windows():
+        root.minsize(820, 640)
+    else:
+        root.minsize(820, 656)
     tk.Label(root, text="").pack()
 
     options_list = [
@@ -264,26 +273,26 @@ def create_tkinter_gui(tests, command_string, t_count, f_count, s_tests):
         row += " " * 200
         ara[count] = tk.IntVar()
         cb = None
-        if not shared_utils.is_windows():
+        if shared_utils.is_windows():
             cb = tk.Checkbutton(
                 text_area,
                 text=(row),
-                bg="teal",
-                fg="yellow",
+                bg="white",
+                fg="black",
                 anchor="w",
                 pady=0,
+                borderwidth=1,
+                highlightthickness=1,
                 variable=ara[count],
             )
         else:
             cb = tk.Checkbutton(
                 text_area,
                 text=(row),
-                bg="teal",
-                fg="yellow",
+                bg="white",
+                fg="black",
                 anchor="w",
                 pady=0,
-                borderwidth=0,
-                highlightthickness=0,
                 variable=ara[count],
             )
         text_area.window_create("end", window=cb)
@@ -325,7 +334,6 @@ def create_tkinter_gui(tests, command_string, t_count, f_count, s_tests):
         root,
         text="Run Selected Tests",
         fg="green",
-        bg="gray",
         command=lambda: do_behave_run(
             root,
             tests,
@@ -390,7 +398,7 @@ def main():
     command_string = command_string.replace("--quiet", "")
     command_string = command_string.replace("-q", "")
     proc = subprocess.Popen(
-        "%s -m behave -d %s --show-source"
+        '"%s" -m behave -d %s --show-source'
         % (sys.executable, command_string),
         stdout=subprocess.PIPE,
         shell=True,

@@ -28,6 +28,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import NoSuchWindowException
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from seleniumbase.common.exceptions import LinkTextNotFoundException
 from seleniumbase.common.exceptions import TextNotVisibleException
 from seleniumbase.config import settings
@@ -1525,6 +1526,34 @@ def click(driver, selector, by="css selector", timeout=settings.SMALL_TIMEOUT):
     element.click()
 
 
+def click_link(driver, link_text, timeout=settings.SMALL_TIMEOUT):
+    element = wait_for_element_clickable(
+        driver, link_text, by="link text", timeout=timeout
+    )
+    element.click()
+
+
+def click_if_visible(
+    driver, selector, by="css selector", timeout=0
+):
+    selector, by = page_utils.recalculate_selector(selector, by)
+    if is_element_visible(driver, selector, by=by):
+        click(driver, selector, by=by, timeout=1)
+    elif timeout > 0:
+        try:
+            wait_for_element_visible(
+                driver, selector, by=by, timeout=timeout
+            )
+        except Exception:
+            pass
+        if is_element_visible(driver, selector, by=by):
+            click(driver, selector, by=by, timeout=1)
+
+
+def click_active_element(driver):
+    driver.execute_script("document.activeElement.click();")
+
+
 def js_click(
     driver, selector, by="css selector", timeout=settings.SMALL_TIMEOUT
 ):
@@ -1554,7 +1583,7 @@ def send_keys(
     driver, selector, text, by="css selector", timeout=settings.LARGE_TIMEOUT
 ):
     selector, by = page_utils.recalculate_selector(selector, by)
-    element = wait_for_element_clickable(
+    element = wait_for_element_present(
         driver, selector, by=by, timeout=timeout
     )
     if not text.endswith("\n"):
@@ -1562,6 +1591,22 @@ def send_keys(
     else:
         element.send_keys(text[:-1])
         element.submit()
+
+
+def press_keys(
+    driver, selector, text, by="css selector", timeout=settings.LARGE_TIMEOUT
+):
+    selector, by = page_utils.recalculate_selector(selector, by)
+    element = wait_for_element_present(
+        driver, selector, by=by, timeout=timeout
+    )
+    if not text.endswith("\n"):
+        for key in text:
+            element.send_keys(key)
+    else:
+        for key in text[:-1]:
+            element.send_keys(key)
+        element.send_keys(Keys.RETURN)
 
 
 def update_text(
@@ -1577,6 +1622,23 @@ def update_text(
     else:
         element.send_keys(text[:-1])
         element.submit()
+
+
+def submit(driver, selector, by="css selector"):
+    selector, by = page_utils.recalculate_selector(selector, by)
+    element = wait_for_element_clickable(
+        driver, selector, by=by, timeout=settings.SMALL_TIMEOUT
+    )
+    element.submit()
+
+
+def has_attribute(
+    driver, selector, attribute, value=None, by="css selector"
+):
+    selector, by = page_utils.recalculate_selector(selector, by)
+    return is_attribute_present(
+        driver, selector, attribute, value=value, by=by
+    )
 
 
 def assert_element_visible(

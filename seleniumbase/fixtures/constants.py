@@ -10,6 +10,7 @@ class Environment:
     DEVELOP = "develop"
     PRODUCTION = "production"
     PERFORMANCE = "performance"
+    REPLICA = "replica"
     FEDRAMP = "fedramp"
     OFFLINE = "offline"
     ONLINE = "online"
@@ -37,6 +38,7 @@ class ValidEnvs:
         "develop",
         "production",
         "performance",
+        "replica",
         "fedramp",
         "offline",
         "online",
@@ -346,6 +348,23 @@ class SeleniumWire:
     VER = "5.1.0"
 
 
+class Mobile:
+    # Default values for mobile settings
+    WIDTH = 390
+    HEIGHT = 715
+    RATIO = 3
+    AGENT = (
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7 XL "
+        "Build/SP2A.220505.006.A1; wv) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
+        "Chrome/110.0.5028.105 Mobile Safari/537.36"
+    )
+
+
+class UC:
+    RECONNECT_TIME = 2.28  # Seconds
+
+
 class ValidBrowsers:
     valid_browsers = [
         "chrome",
@@ -367,17 +386,25 @@ class ValidBinaries:
         "google-chrome-beta",
         "google-chrome-dev",
         "google-chrome-unstable",
+        "brave-browser",
+        "brave-browser-stable",
+        "opera",
+        "opera-stable",
+        "chrome.exe",  # WSL (Windows Subsystem for Linux)
     ]
     valid_edge_binaries_on_linux = [
         "microsoft-edge",
         "microsoft-edge-stable",
         "microsoft-edge-beta",
         "microsoft-edge-dev",
+        "msedge.exe",  # WSL (Windows Subsystem for Linux)
     ]
     valid_chrome_binaries_on_macos = [
         "Google Chrome",
         "Chromium",
         "Google Chrome for Testing",
+        "Brave Browser",
+        "Opera",
     ]
     valid_edge_binaries_on_macos = [
         "Microsoft Edge",
@@ -385,6 +412,8 @@ class ValidBinaries:
     valid_chrome_binaries_on_windows = [
         "chrome.exe",
         "chromium.exe",
+        "brave.exe",
+        "opera.exe",
     ]
     valid_edge_binaries_on_windows = [
         "msedge.exe",

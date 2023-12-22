@@ -10,6 +10,7 @@ import types
 import urllib3
 import warnings
 from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.options import ArgOptions
 from selenium.webdriver.common.service import utils as service_utils
@@ -107,12 +108,22 @@ def make_driver_executable_if_not(driver_path):
 
 def extend_driver(driver):
     # Extend the driver with new methods
+    driver.default_find_element = driver.find_element
+    driver.default_find_elements = driver.find_elements
     DM = sb_driver.DriverMethods(driver)
+    driver.find_element = DM.find_element
+    driver.find_elements = DM.find_elements
+    driver.locator = DM.locator
     page = types.SimpleNamespace()
     page.open = DM.open_url
     page.click = DM.click
+    page.click_link = DM.click_link
+    page.click_if_visible = DM.click_if_visible
+    page.click_active_element = DM.click_active_element
     page.send_keys = DM.send_keys
+    page.press_keys = DM.press_keys
     page.type = DM.update_text
+    page.submit = DM.submit
     page.assert_element = DM.assert_element_visible
     page.assert_element_present = DM.assert_element_present
     page.assert_element_not_visible = DM.assert_element_not_visible
@@ -127,7 +138,13 @@ def extend_driver(driver):
     page.is_element_visible = DM.is_element_visible
     page.is_text_visible = DM.is_text_visible
     page.is_exact_text_visible = DM.is_exact_text_visible
+    page.is_attribute_present = DM.is_attribute_present
     page.get_text = DM.get_text
+    page.find_element = DM.find_element
+    page.find_elements = DM.find_elements
+    page.locator = DM.locator
+    page.get_page_source = DM.get_page_source
+    page.get_title = DM.get_title
     driver.page = page
     js = types.SimpleNamespace()
     js.js_click = DM.js_click
@@ -139,8 +156,13 @@ def extend_driver(driver):
     driver.js = js
     driver.open = DM.open_url
     driver.click = DM.click
+    driver.click_link = DM.click_link
+    driver.click_if_visible = DM.click_if_visible
+    driver.click_active_element = DM.click_active_element
     driver.send_keys = DM.send_keys
+    driver.press_keys = DM.press_keys
     driver.type = DM.update_text
+    driver.submit = DM.submit
     driver.assert_element = DM.assert_element_visible
     driver.assert_element_present = DM.assert_element_present
     driver.assert_element_not_visible = DM.assert_element_not_visible
@@ -155,6 +177,7 @@ def extend_driver(driver):
     driver.is_element_visible = DM.is_element_visible
     driver.is_text_visible = DM.is_text_visible
     driver.is_exact_text_visible = DM.is_exact_text_visible
+    driver.is_attribute_present = DM.is_attribute_present
     driver.get_text = DM.get_text
     driver.js_click = DM.js_click
     driver.get_active_element_css = DM.get_active_element_css
@@ -162,7 +185,14 @@ def extend_driver(driver):
     driver.get_origin = DM.get_origin
     driver.get_user_agent = DM.get_user_agent
     driver.highlight = DM.highlight
+    driver.highlight_click = DM.highlight_click
     driver.sleep = time.sleep
+    driver.get_attribute = DM.get_attribute
+    driver.get_page_source = DM.get_page_source
+    driver.get_title = DM.get_title
+    driver.switch_to_frame = DM.switch_to_frame
+    if hasattr(driver, "proxy"):
+        driver.set_wire_proxy = DM.set_wire_proxy
     return driver
 
 
@@ -212,7 +242,7 @@ def chromedriver_on_path():
     return None
 
 
-def get_uc_driver_version():
+def get_uc_driver_version(full=False):
     uc_driver_version = None
     if os.path.exists(LOCAL_UC_DRIVER):
         try:
@@ -223,9 +253,13 @@ def get_uc_driver_version():
                 output = output.decode("latin1")
             else:
                 output = output.decode("utf-8")
+            full_version = output.split(" ")[1]
             output = output.split(" ")[1].split(".")[0]
             if int(output) >= 72:
-                uc_driver_version = output
+                if full:
+                    uc_driver_version = full_version
+                else:
+                    uc_driver_version = output
         except Exception:
             pass
     return uc_driver_version
@@ -276,23 +310,33 @@ def find_edgedriver_version_to_use(use_version, driver_version):
 
 def has_cf(text):
     if (
-        "<title>Just a moment...</title>" in text
-        or "<title>403 Forbidden</title>" in text
+        "<title>403 Forbidden</title>" in text
         or "Permission Denied</title>" in text
         or 'id="challenge-error-text"' in text
+        or "<title>Just a moment..." in text
         or 'action="/?__cf_chl_f_tk' in text
         or 'src="chromedriver.js"' in text
+        or 'class="g-recaptcha"' in text
+        or 'content="Pixelscan"' in text
         or 'id="challenge-form"' in text
         or "window._cf_chl_opt" in text
+        or "/recaptcha/api.js" in text
+        or "/turnstile/" in text
     ):
         return True
     return False
 
 
-def uc_special_open_if_cf(driver, url, proxy_string=None):
-    if (
-        url.startswith("http:") or url.startswith("https:")
-    ):
+def uc_special_open_if_cf(
+    driver,
+    url,
+    proxy_string=None,
+    mobile_emulator=None,
+    device_width=None,
+    device_height=None,
+    device_pixel_ratio=None,
+):
+    if url.startswith("http:") or url.startswith("https:"):
         special = False
         try:
             req_get = requests_get(url, proxy_string)
@@ -309,12 +353,42 @@ def uc_special_open_if_cf(driver, url, proxy_string=None):
         except Exception:
             pass
         if special:
+            time.sleep(0.05)
             with driver:
-                time.sleep(0.18)
                 driver.execute_script('window.open("%s","_blank");' % url)
                 driver.close()
+                if mobile_emulator:
+                    driver.switch_to.window(driver.window_handles[-1])
+                    uc_metrics = {}
+                    if (
+                        type(device_width) is int
+                        and type(device_height) is int
+                        and type(device_pixel_ratio) is int
+                    ):
+                        uc_metrics["width"] = device_width
+                        uc_metrics["height"] = device_height
+                        uc_metrics["pixelRatio"] = device_pixel_ratio
+                    else:
+                        uc_metrics["width"] = constants.Mobile.WIDTH
+                        uc_metrics["height"] = constants.Mobile.HEIGHT
+                        uc_metrics["pixelRatio"] = constants.Mobile.RATIO
+                    set_device_metrics_override = dict(
+                        {
+                            "width": uc_metrics["width"],
+                            "height": uc_metrics["height"],
+                            "deviceScaleFactor": uc_metrics["pixelRatio"],
+                            "mobile": True
+                        }
+                    )
+                    try:
+                        driver.execute_cdp_cmd(
+                            'Emulation.setDeviceMetricsOverride',
+                            set_device_metrics_override
+                        )
+                    except Exception:
+                        pass
+            if not mobile_emulator:
                 driver.switch_to.window(driver.window_handles[-1])
-                time.sleep(0.02)
         else:
             driver.default_get(url)  # The original one
     else:
@@ -324,10 +398,9 @@ def uc_special_open_if_cf(driver, url, proxy_string=None):
 
 def uc_open(driver, url):
     if (url.startswith("http:") or url.startswith("https:")):
+        time.sleep(0.05)
         with driver:
-            time.sleep(0.18)
             driver.default_get(url)
-            time.sleep(0.02)
     else:
         driver.default_get(url)  # The original one
     return None
@@ -335,27 +408,62 @@ def uc_open(driver, url):
 
 def uc_open_with_tab(driver, url):
     if (url.startswith("http:") or url.startswith("https:")):
+        time.sleep(0.05)
         with driver:
-            time.sleep(0.18)
             driver.execute_script('window.open("%s","_blank");' % url)
             driver.close()
-            driver.switch_to.window(driver.window_handles[-1])
-            time.sleep(0.02)
-    else:
-        driver.default_get(url)  # The original one
-    return None
-
-
-def uc_open_with_reconnect(driver, url):
-    """Open a url, then reconnect with UC before switching to the window."""
-    if (url.startswith("http:") or url.startswith("https:")):
-        driver.execute_script('window.open("%s","_blank");' % url)
-        driver.reconnect(2.65)
-        driver.close()
         driver.switch_to.window(driver.window_handles[-1])
     else:
         driver.default_get(url)  # The original one
     return None
+
+
+def uc_open_with_reconnect(driver, url, reconnect_time=None):
+    """Open a url, disconnect chromedriver, wait, and reconnect."""
+    if not reconnect_time:
+        reconnect_time = constants.UC.RECONNECT_TIME
+    if (url.startswith("http:") or url.startswith("https:")):
+        driver.execute_script('window.open("%s","_blank");' % url)
+        driver.close()
+        driver.reconnect(reconnect_time)
+        driver.switch_to.window(driver.window_handles[-1])
+    else:
+        driver.default_get(url)  # The original one
+    return None
+
+
+def uc_click(
+    driver,
+    selector,
+    by="css selector",
+    timeout=settings.SMALL_TIMEOUT,
+    reconnect_time=None,
+):
+    try:
+        rct = float(by)  # Add shortcut: driver.uc_click(selector, RCT)
+        if not reconnect_time:
+            reconnect_time = rct
+        by = "css selector"
+    except Exception:
+        pass
+    element = driver.wait_for_element(selector, by=by, timeout=timeout)
+    try:
+        element.uc_click(
+            driver, selector, by=by, reconnect_time=reconnect_time
+        )
+    except ElementClickInterceptedException:
+        driver.js_click(selector, by=by, timeout=timeout)
+
+
+def uc_switch_to_frame(driver, frame):
+    from selenium.webdriver.remote.webelement import WebElement
+    if isinstance(frame, WebElement):
+        driver.reconnect(0.15)
+        driver.switch_to.frame(frame)
+    else:
+        iframe = driver.locator(frame)
+        driver.reconnect(0.15)
+        driver.switch_to.frame(iframe)
 
 
 def edgedriver_on_path():
@@ -506,8 +614,8 @@ def _add_chrome_proxy_extension(
     zip_it=True,
     multi_proxy=False,
 ):
-    """Implementation of https://stackoverflow.com/a/35293284 for
-    https://stackoverflow.com/questions/12848327/
+    """Implementation of https://stackoverflow.com/a/35293284/7058266
+    for https://stackoverflow.com/q/12848327/7058266
     (Run Selenium on a proxy server that requires authentication.)"""
     args = " ".join(sys.argv)
     bypass_list = proxy_bypass_list
@@ -636,6 +744,7 @@ def _set_chrome_options(
     undetectable,
     uc_cdp_events,
     uc_subprocess,
+    log_cdp_events,
     no_sandbox,
     disable_gpu,
     headless2,
@@ -647,6 +756,7 @@ def _set_chrome_options(
     enable_3d_apis,
     swiftshader,
     ad_block_on,
+    host_resolver_rules,
     block_images,
     do_not_track,
     chromium_arg,
@@ -677,6 +787,16 @@ def _set_chrome_options(
     prefs["download.prompt_for_download"] = False
     prefs["download.directory_upgrade"] = True
     prefs["safebrowsing.enabled"] = False
+    prefs["omnibox-max-zero-suggest-matches"] = 0
+    prefs["omnibox-use-existing-autocomplete-client"] = 0
+    prefs["omnibox-trending-zero-prefix-suggestions-on-ntp"] = 0
+    prefs["omnibox-local-history-zero-suggest-beyond-ntp"] = 0
+    prefs["omnibox-on-focus-suggestions-contextual-web"] = 0
+    prefs["omnibox-on-focus-suggestions-srp"] = 0
+    prefs["omnibox-zero-suggest-prefetching"] = 0
+    prefs["omnibox-zero-suggest-prefetching-on-srp"] = 0
+    prefs["omnibox-zero-suggest-prefetching-on-web"] = 0
+    prefs["omnibox-zero-suggest-in-memory-caching"] = 0
     prefs["default_content_setting_values.notifications"] = 0
     prefs["content_settings.exceptions.automatic_downloads.*.setting"] = 1
     prefs["safebrowsing.disable_download_protection"] = True
@@ -697,6 +817,11 @@ def _set_chrome_options(
         prefs["enable_do_not_track"] = True
     if external_pdf:
         prefs["plugins.always_open_pdf_externally"] = True
+    if proxy_string or proxy_pac_url:
+        # Implementation of https://stackoverflow.com/q/65705775/7058266
+        prefs["webrtc.ip_handling_policy"] = "disable_non_proxied_udp"
+        prefs["webrtc.multiple_routes_enabled"] = False
+        prefs["webrtc.nonproxied_udp_enabled"] = False
     chrome_options.add_experimental_option("prefs", prefs)
     if enable_sync:
         chrome_options.add_experimental_option(
@@ -709,7 +834,15 @@ def _set_chrome_options(
             "excludeSwitches",
             ["enable-automation", "enable-logging", "enable-blink-features"],
         )
-    if mobile_emulator:
+    if log_cdp_events:
+        chrome_options.set_capability(
+            "goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"}
+        )
+    if host_resolver_rules:
+        chrome_options.add_argument(
+            "--host-resolver-rules=%s" % host_resolver_rules
+        )
+    if mobile_emulator and not is_using_uc(undetectable, browser_name):
         emulator_settings = {}
         device_metrics = {}
         if (
@@ -721,9 +854,9 @@ def _set_chrome_options(
             device_metrics["height"] = device_height
             device_metrics["pixelRatio"] = device_pixel_ratio
         else:
-            device_metrics["width"] = 360
-            device_metrics["height"] = 640
-            device_metrics["pixelRatio"] = 2
+            device_metrics["width"] = constants.Mobile.WIDTH
+            device_metrics["height"] = constants.Mobile.HEIGHT
+            device_metrics["pixelRatio"] = constants.Mobile.RATIO
         emulator_settings["deviceMetrics"] = device_metrics
         if user_agent:
             emulator_settings["userAgent"] = user_agent
@@ -894,7 +1027,8 @@ def _set_chrome_options(
             debug_port = service_utils.free_port()
         chrome_options.add_argument("--remote-debugging-port=%s" % debug_port)
     if swiftshader:
-        chrome_options.add_argument("--use-gl=swiftshader")
+        chrome_options.add_argument("--use-gl=angle")
+        chrome_options.add_argument("--use-angle=swiftshader-webgl")
     elif not is_using_uc(undetectable, browser_name):
         chrome_options.add_argument("--disable-gpu")
     if not IS_LINUX and is_using_uc(undetectable, browser_name):
@@ -955,10 +1089,19 @@ def _set_chrome_options(
     if headless or headless2 or is_using_uc(undetectable, browser_name):
         chrome_options.add_argument("--disable-renderer-backgrounding")
     chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-    chrome_options.add_argument(
-        '--disable-features=OptimizationHintsFetching,'
-        'OptimizationTargetPrediction'
-    )
+    chrome_options.add_argument("--ash-no-nudges")
+    chrome_options.add_argument("--deny-permission-prompts")
+    if user_data_dir:
+        chrome_options.add_argument(
+            "--disable-features=OptimizationHintsFetching,Translate,"
+            "OptimizationTargetPrediction,PrivacySandboxSettings4,"
+            "DownloadBubble,DownloadBubbleV2"
+        )
+    else:
+        chrome_options.add_argument(
+            "--disable-features=OptimizationHintsFetching,Translate,"
+            "OptimizationTargetPrediction,DownloadBubble,DownloadBubbleV2"
+        )
     if (
         is_using_uc(undetectable, browser_name)
         and (
@@ -1171,6 +1314,7 @@ def get_driver(
     undetectable=False,
     uc_cdp_events=False,
     uc_subprocess=False,
+    log_cdp_events=False,
     no_sandbox=False,
     disable_gpu=False,
     headless2=False,
@@ -1182,6 +1326,7 @@ def get_driver(
     enable_3d_apis=False,
     swiftshader=False,
     ad_block_on=False,
+    host_resolver_rules=None,
     block_images=False,
     do_not_track=False,
     chromium_arg=None,
@@ -1247,9 +1392,9 @@ def get_driver(
                 binary_location = None
     if (uc_cdp_events or uc_subprocess) and not undetectable:
         undetectable = True
-    if is_using_uc(undetectable, browser_name) and mobile_emulator:
-        mobile_emulator = False
-        user_agent = None
+    if mobile_emulator and not user_agent:
+        # Use a Pixel user agent by default if not specified
+        user_agent = constants.Mobile.AGENT
     if page_load_strategy and page_load_strategy.lower() == "none":
         settings.PAGE_LOAD_STRATEGY = "none"
     proxy_auth = False
@@ -1381,6 +1526,7 @@ def get_driver(
             undetectable,
             uc_cdp_events,
             uc_subprocess,
+            log_cdp_events,
             no_sandbox,
             disable_gpu,
             headless2,
@@ -1392,6 +1538,7 @@ def get_driver(
             enable_3d_apis,
             swiftshader,
             ad_block_on,
+            host_resolver_rules,
             block_images,
             do_not_track,
             chromium_arg,
@@ -1434,6 +1581,7 @@ def get_driver(
             undetectable,
             uc_cdp_events,
             uc_subprocess,
+            log_cdp_events,
             no_sandbox,
             disable_gpu,
             headless2,
@@ -1445,6 +1593,7 @@ def get_driver(
             enable_3d_apis,
             swiftshader,
             ad_block_on,
+            host_resolver_rules,
             block_images,
             do_not_track,
             chromium_arg,
@@ -1491,6 +1640,7 @@ def get_remote_driver(
     undetectable,
     uc_cdp_events,
     uc_subprocess,
+    log_cdp_events,
     no_sandbox,
     disable_gpu,
     headless2,
@@ -1502,6 +1652,7 @@ def get_remote_driver(
     enable_3d_apis,
     swiftshader,
     ad_block_on,
+    host_resolver_rules,
     block_images,
     do_not_track,
     chromium_arg,
@@ -1611,6 +1762,7 @@ def get_remote_driver(
             undetectable,
             uc_cdp_events,
             uc_subprocess,
+            log_cdp_events,
             no_sandbox,
             disable_gpu,
             headless2,
@@ -1622,6 +1774,7 @@ def get_remote_driver(
             enable_3d_apis,
             swiftshader,
             ad_block_on,
+            host_resolver_rules,
             block_images,
             do_not_track,
             chromium_arg,
@@ -1774,6 +1927,7 @@ def get_remote_driver(
             undetectable,
             uc_cdp_events,
             uc_subprocess,
+            log_cdp_events,
             no_sandbox,
             disable_gpu,
             headless2,
@@ -1785,6 +1939,7 @@ def get_remote_driver(
             enable_3d_apis,
             swiftshader,
             ad_block_on,
+            host_resolver_rules,
             block_images,
             do_not_track,
             chromium_arg,
@@ -1887,6 +2042,7 @@ def get_local_driver(
     undetectable,
     uc_cdp_events,
     uc_subprocess,
+    log_cdp_events,
     no_sandbox,
     disable_gpu,
     headless2,
@@ -1898,6 +2054,7 @@ def get_local_driver(
     enable_3d_apis,
     swiftshader,
     ad_block_on,
+    host_resolver_rules,
     block_images,
     do_not_track,
     chromium_arg,
@@ -2132,6 +2289,16 @@ def get_local_driver(
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing.enabled": False,
+            "omnibox-max-zero-suggest-matches": 0,
+            "omnibox-use-existing-autocomplete-client": 0,
+            "omnibox-trending-zero-prefix-suggestions-on-ntp": 0,
+            "omnibox-local-history-zero-suggest-beyond-ntp": 0,
+            "omnibox-on-focus-suggestions-contextual-web": 0,
+            "omnibox-on-focus-suggestions-srp": 0,
+            "omnibox-zero-suggest-prefetching": 0,
+            "omnibox-zero-suggest-prefetching-on-srp": 0,
+            "omnibox-zero-suggest-prefetching-on-web": 0,
+            "omnibox-zero-suggest-in-memory-caching": 0,
             "safebrowsing.disable_download_protection": True,
             "default_content_setting_values.notifications": 0,
             "default_content_settings.popups": 0,
@@ -2145,6 +2312,9 @@ def get_local_driver(
         }
         use_version = "latest"
         major_edge_version = None
+        saved_mev = None
+        use_br_version_for_edge = False
+        use_exact_version_for_edge = False
         try:
             if binary_location:
                 try:
@@ -2152,7 +2322,9 @@ def get_local_driver(
                         detect_b_ver.get_browser_version_from_binary(
                             binary_location
                         )
-                    ).split(".")[0]
+                    )
+                    saved_mev = major_edge_version
+                    major_edge_version = saved_mev.split(".")[0]
                     if len(major_edge_version) < 2:
                         major_edge_version = None
                 except Exception:
@@ -2161,16 +2333,27 @@ def get_local_driver(
                 br_app = "edge"
                 major_edge_version = (
                     detect_b_ver.get_browser_version_from_os(br_app)
-                ).split(".")[0]
+                )
+                saved_mev = major_edge_version
+                major_edge_version = major_edge_version.split(".")[0]
             if int(major_edge_version) < 80:
                 major_edge_version = None
+            elif int(major_edge_version) >= 115:
+                if (
+                    driver_version == "browser"
+                    and saved_mev
+                    and len(saved_mev.split(".")) == 4
+                ):
+                    driver_version = saved_mev
+                    use_br_version_for_edge = True
         except Exception:
             major_edge_version = None
+        if driver_version and "." in driver_version:
+            use_exact_version_for_edge = True
+        if use_br_version_for_edge:
+            major_edge_version = saved_mev
         if major_edge_version:
             use_version = major_edge_version
-        use_version = find_edgedriver_version_to_use(
-            use_version, driver_version
-        )
         edge_driver_version = None
         edgedriver_upgrade_needed = False
         if os.path.exists(LOCAL_EDGEDRIVER):
@@ -2184,21 +2367,27 @@ def get_local_driver(
                     output = output.decode("utf-8")
                 if output.split(" ")[0] == "MSEdgeDriver":
                     # MSEdgeDriver VERSION
-                    output = output.split(" ")[1].split(".")[0]
+                    output = output.split(" ")[1]
+                    if use_exact_version_for_edge:
+                        edge_driver_version = output.split(" ")[0]
+                    output = output.split(".")[0]
                 elif output.split(" ")[0] == "Microsoft":
-                    # Microsoft Edge WebDriver VERSION
-                    if (
-                        "WebDriver 115.0" in output
-                        and "115.0.1901.183" not in output
-                    ):
-                        edgedriver_upgrade_needed = True
-                    output = output.split(" ")[3].split(".")[0]
+                    output = output.split(" ")[3]
+                    if use_exact_version_for_edge:
+                        edge_driver_version = output.split(" ")[0]
+                    output = output.split(".")[0]
                 else:
                     output = 0
                 if int(output) >= 2:
-                    edge_driver_version = output
+                    if not use_exact_version_for_edge:
+                        edge_driver_version = output
+                    if driver_version == "keep":
+                        driver_version = edge_driver_version
             except Exception:
                 pass
+        use_version = find_edgedriver_version_to_use(
+            use_version, driver_version
+        )
         local_edgedriver_exists = False
         if LOCAL_EDGEDRIVER and os.path.exists(LOCAL_EDGEDRIVER):
             local_edgedriver_exists = True
@@ -2273,6 +2462,14 @@ def get_local_driver(
         edge_options.add_experimental_option(
             "excludeSwitches", ["enable-automation", "enable-logging"]
         )
+        if log_cdp_events:
+            edge_options.set_capability(
+                "ms:loggingPrefs", {"performance": "ALL", "browser": "ALL"}
+            )
+        if host_resolver_rules:
+            edge_options.add_argument(
+                "--host-resolver-rules=%s" % host_resolver_rules
+            )
         if not enable_sync:
             edge_options.add_argument("--disable-sync")
         if (
@@ -2306,7 +2503,7 @@ def get_local_driver(
         elif headless:
             if "--headless" not in edge_options.arguments:
                 edge_options.add_argument("--headless")
-        if mobile_emulator:
+        if mobile_emulator and not is_using_uc(undetectable, browser_name):
             emulator_settings = {}
             device_metrics = {}
             if (
@@ -2318,9 +2515,9 @@ def get_local_driver(
                 device_metrics["height"] = device_height
                 device_metrics["pixelRatio"] = device_pixel_ratio
             else:
-                device_metrics["width"] = 360
-                device_metrics["height"] = 640
-                device_metrics["pixelRatio"] = 2
+                device_metrics["width"] = constants.Mobile.WIDTH
+                device_metrics["height"] = constants.Mobile.HEIGHT
+                device_metrics["pixelRatio"] = constants.Mobile.RATIO
             emulator_settings["deviceMetrics"] = device_metrics
             if user_agent:
                 emulator_settings["userAgent"] = user_agent
@@ -2361,10 +2558,18 @@ def get_local_driver(
         edge_options.add_argument(
             "--disable-autofill-keyboard-accessory-view[8]"
         )
-        edge_options.add_argument(
-            '--disable-features=OptimizationHintsFetching,'
-            'OptimizationTargetPrediction'
-        )
+        edge_options.add_argument("--ash-no-nudges")
+        edge_options.add_argument("--deny-permission-prompts")
+        if user_data_dir:
+            edge_options.add_argument(
+                "--disable-features=OptimizationHintsFetching,Translate,"
+                "OptimizationTargetPrediction,PrivacySandboxSettings4"
+            )
+        else:
+            edge_options.add_argument(
+                "--disable-features=OptimizationHintsFetching,Translate,"
+                "OptimizationTargetPrediction"
+            )
         edge_options.add_argument("--disable-browser-side-navigation")
         edge_options.add_argument("--disable-translate")
         if not enable_ws:
@@ -2454,7 +2659,8 @@ def get_local_driver(
                 free_port = service_utils.free_port()
             edge_options.add_argument("--remote-debugging-port=%s" % free_port)
         if swiftshader:
-            edge_options.add_argument("--use-gl=swiftshader")
+            edge_options.add_argument("--use-gl=angle")
+            edge_options.add_argument("--use-angle=swiftshader-webgl")
         else:
             edge_options.add_argument("--disable-gpu")
         if IS_LINUX:
@@ -2594,6 +2800,7 @@ def get_local_driver(
                 undetectable,
                 uc_cdp_events,
                 uc_subprocess,
+                log_cdp_events,
                 no_sandbox,
                 disable_gpu,
                 headless2,
@@ -2605,6 +2812,7 @@ def get_local_driver(
                 enable_3d_apis,
                 swiftshader,
                 ad_block_on,
+                host_resolver_rules,
                 block_images,
                 do_not_track,
                 chromium_arg,
@@ -2624,8 +2832,10 @@ def get_local_driver(
             )
             use_version = "latest"
             major_chrome_version = None
+            saved_mcv = None
             full_ch_version = None
             full_ch_driver_version = None
+            use_br_version_for_uc = False
             try:
                 if chrome_options.binary_location:
                     try:
@@ -2633,7 +2843,9 @@ def get_local_driver(
                             detect_b_ver.get_browser_version_from_binary(
                                 chrome_options.binary_location,
                             )
-                        ).split(".")[0]
+                        )
+                        saved_mcv = major_chrome_version
+                        major_chrome_version = saved_mcv.split(".")[0]
                         if len(major_chrome_version) < 2:
                             major_chrome_version = None
                     except Exception:
@@ -2643,6 +2855,7 @@ def get_local_driver(
                     full_ch_version = (
                         detect_b_ver.get_browser_version_from_os(br_app)
                     )
+                    saved_mcv = full_ch_version
                     major_chrome_version = full_ch_version.split(".")[0]
                 if int(major_chrome_version) < 67:
                     major_chrome_version = None
@@ -2652,6 +2865,31 @@ def get_local_driver(
                 ):
                     # chromedrivers 2.41 - 2.46 could be swapped with 72
                     major_chrome_version = "72"
+                elif int(major_chrome_version) >= 115:
+                    if (
+                        driver_version == "browser"
+                        and saved_mcv
+                        and len(saved_mcv.split(".")) == 4
+                    ):
+                        driver_version = saved_mcv
+                        if is_using_uc(undetectable, browser_name):
+                            use_br_version_for_uc = True
+                    if (
+                        (headless or headless2)
+                        and IS_WINDOWS
+                        and major_chrome_version
+                        and int(major_chrome_version) >= 117
+                        and not is_using_uc(undetectable, browser_name)
+                        and not (remote_debug or devtools or use_wire)
+                        and not (proxy_string or multi_proxy or proxy_pac_url)
+                        and (not chromium_arg or "debug" not in chromium_arg)
+                        and (not servername or servername == "localhost")
+                    ):
+                        # Hide the "DevTools listening on ..." message.
+                        # https://bugs.chromium.org
+                        # /p/chromedriver/issues/detail?id=4403#c35
+                        # (Only when the remote debugging port is not needed.)
+                        chrome_options.add_argument("--remote-debugging-pipe")
             except Exception:
                 major_chrome_version = None
             if major_chrome_version:
@@ -2671,6 +2909,8 @@ def get_local_driver(
                     output = full_ch_driver_version.split(".")[0]
                     if int(output) >= 2:
                         ch_driver_version = output
+                        if driver_version == "keep":
+                            driver_version = ch_driver_version
                 except Exception:
                     pass
             elif path_chromedriver:
@@ -2693,11 +2933,31 @@ def get_local_driver(
                     output = full_ch_driver_version.split(".")[0]
                     if int(output) >= 2:
                         ch_driver_version = output
+                        if driver_version == "keep":
+                            use_version = ch_driver_version
                 except Exception:
                     pass
+            disable_build_check = True
+            uc_driver_version = None
+            if is_using_uc(undetectable, browser_name):
+                if use_br_version_for_uc or driver_version == "mlatest":
+                    uc_driver_version = get_uc_driver_version(full=True)
+                    full_ch_driver_version = uc_driver_version
+                else:
+                    uc_driver_version = get_uc_driver_version()
+                if multi_proxy:
+                    sb_config.multi_proxy = True
+                if uc_driver_version and driver_version == "keep":
+                    driver_version = uc_driver_version
+            use_version = find_chromedriver_version_to_use(
+                use_version, driver_version
+            )
             if headless2:
                 try:
-                    if use_version == "latest" or int(use_version) >= 109:
+                    if (
+                        use_version == "latest"
+                        or int(str(use_version).split(".")[0]) >= 109
+                    ):
                         chrome_options.add_argument("--headless=new")
                     else:
                         chrome_options.add_argument("--headless=chrome")
@@ -2705,29 +2965,21 @@ def get_local_driver(
                     chrome_options.add_argument("--headless=new")
             elif headless and undetectable:
                 try:
-                    if int(use_version) >= 109:
+                    int_use_version = int(str(use_version).split(".")[0])
+                    if int_use_version >= 109:
                         chrome_options.add_argument("--headless=new")
                     elif (
-                        int(use_version) >= 96
-                        and int(use_version) <= 108
+                        int_use_version >= 96
+                        and int_use_version <= 108
                     ):
                         chrome_options.add_argument("--headless=chrome")
                     else:
                         pass  # Will need Xvfb on Linux
                 except Exception:
-                    pass
+                    pass  # Will need Xvfb on Linux
             elif headless:
                 if "--headless" not in chrome_options.arguments:
                     chrome_options.add_argument("--headless")
-            disable_build_check = True  # True is NEW for Chrome 115 changes!
-            uc_driver_version = None
-            if is_using_uc(undetectable, browser_name):
-                uc_driver_version = get_uc_driver_version()
-                if multi_proxy:
-                    sb_config.multi_proxy = True
-            use_version = find_chromedriver_version_to_use(
-                use_version, driver_version
-            )
             if LOCAL_CHROMEDRIVER and os.path.exists(LOCAL_CHROMEDRIVER):
                 try:
                     make_driver_executable_if_not(LOCAL_CHROMEDRIVER)
@@ -2753,7 +3005,10 @@ def get_local_driver(
             ):
                 full_ch_v_p = full_ch_version.split(".")[0:2]
                 full_ch_driver_v_p = full_ch_driver_version.split(".")[0:2]
-                if full_ch_v_p == full_ch_driver_v_p:
+                if (
+                    full_ch_v_p == full_ch_driver_v_p
+                    or driver_version == "keep"
+                ):
                     browser_driver_close_match = True
             # If not ARM MAC and need to use uc_driver (and it's missing),
             # and already have chromedriver with the correct version,
@@ -2799,6 +3054,12 @@ def get_local_driver(
                     use_uc
                     and use_version != "latest"  # Browser version detected
                     and uc_driver_version != use_version
+                )
+                or (
+                    full_ch_driver_version  # Also used for the uc_driver
+                    and driver_version
+                    and len(str(driver_version).split(".")) == 4
+                    and full_ch_driver_version != driver_version
                 )
             ):
                 # chromedriver download needed in the seleniumbase/drivers dir
@@ -2992,6 +3253,13 @@ def get_local_driver(
                                 and int(use_version) >= 72
                             ):
                                 uc_chrome_version = int(use_version)
+                            elif (
+                                str(use_version).split(".")[0].isnumeric()
+                                and int(str(use_version).split(".")[0]) >= 72
+                            ):
+                                uc_chrome_version = (
+                                    int(str(use_version).split(".")[0])
+                                )
                             cdp_events = uc_cdp_events
                             cert = "unable to get local issuer certificate"
                             mac_certificate_error = False
@@ -3049,6 +3317,7 @@ def get_local_driver(
                                         False,  # undetectable
                                         False,  # uc_cdp_events
                                         False,  # uc_subprocess
+                                        False,  # log_cdp_events
                                         no_sandbox,
                                         disable_gpu,
                                         False,  # headless2
@@ -3060,6 +3329,7 @@ def get_local_driver(
                                         enable_3d_apis,
                                         swiftshader,
                                         None,  # ad_block_on
+                                        None,  # host_resolver_rules
                                         block_images,
                                         do_not_track,
                                         None,  # chromium_arg
@@ -3084,7 +3354,9 @@ def get_local_driver(
                                             and use_version
                                             and (
                                                 int(ch_driver_version)
-                                                < int(use_version)
+                                                < int(str(
+                                                    use_version).split(".")[0]
+                                                )
                                             )
                                         )
                                     ):
@@ -3262,6 +3534,7 @@ def get_local_driver(
                         False,  # undetectable
                         False,  # uc_cdp_events
                         False,  # uc_subprocess
+                        False,  # log_cdp_events
                         no_sandbox,
                         disable_gpu,
                         False,  # headless2
@@ -3273,6 +3546,7 @@ def get_local_driver(
                         enable_3d_apis,
                         swiftshader,
                         None,  # ad_block_on
+                        None,  # host_resolver_rules
                         block_images,
                         do_not_track,
                         None,  # chromium_arg
@@ -3329,15 +3603,60 @@ def get_local_driver(
                 driver.default_get = driver.get  # Save copy of original
                 if uc_activated:
                     driver.get = lambda url: uc_special_open_if_cf(
-                        driver, url, proxy_string
+                        driver,
+                        url,
+                        proxy_string,
+                        mobile_emulator,
+                        device_width,
+                        device_height,
+                        device_pixel_ratio,
                     )
                     driver.uc_open = lambda url: uc_open(driver, url)
                     driver.uc_open_with_tab = (
                         lambda url: uc_open_with_tab(driver, url)
                     )
                     driver.uc_open_with_reconnect = (
-                        lambda url: uc_open_with_reconnect(driver, url)
+                        lambda *args, **kwargs: uc_open_with_reconnect(
+                            driver, *args, **kwargs
+                        )
                     )
+                    driver.uc_click = lambda *args, **kwargs: uc_click(
+                        driver, *args, **kwargs
+                    )
+                    driver.uc_switch_to_frame = (
+                        lambda *args, **kwargs: uc_switch_to_frame(
+                            driver, *args, **kwargs
+                        )
+                    )
+                    if mobile_emulator:
+                        uc_metrics = {}
+                        if (
+                            type(device_width) is int
+                            and type(device_height) is int
+                            and type(device_pixel_ratio) is int
+                        ):
+                            uc_metrics["width"] = device_width
+                            uc_metrics["height"] = device_height
+                            uc_metrics["pixelRatio"] = device_pixel_ratio
+                        else:
+                            uc_metrics["width"] = constants.Mobile.WIDTH
+                            uc_metrics["height"] = constants.Mobile.HEIGHT
+                            uc_metrics["pixelRatio"] = constants.Mobile.RATIO
+                        set_device_metrics_override = dict(
+                            {
+                                "width": uc_metrics["width"],
+                                "height": uc_metrics["height"],
+                                "deviceScaleFactor": uc_metrics["pixelRatio"],
+                                "mobile": True
+                            }
+                        )
+                        try:
+                            driver.execute_cdp_cmd(
+                                'Emulation.setDeviceMetricsOverride',
+                                set_device_metrics_override
+                            )
+                        except Exception:
+                            pass
                 return extend_driver(driver)
             else:  # Running headless on Linux (and not using --uc)
                 try:

@@ -71,6 +71,7 @@ if pure_python:
     sb.no_sandbox = False
     sb.disable_js = False
     sb.disable_gpu = False
+    sb.log_cdp_events = False
     sb._multithreaded = False
     sb._reuse_session = False
     sb._crumbs = False
@@ -83,6 +84,7 @@ if pure_python:
     sb._disable_beforeunload = False
     sb.save_screenshot_after_test = False
     sb.no_screenshot_after_test = False
+    sb.host_resolver_rules = None
     sb.page_load_strategy = None
     sb.timeout_multiplier = None
     sb.pytest_html_report = None
@@ -117,8 +119,8 @@ if pure_python:
     sb.proxy_string = None
     sb.proxy_bypass_list = None
     sb.proxy_pac_url = None
+    sb._swiftshader = False
     sb.multi_proxy = False
-    sb.swiftshader = False
     sb.ad_block_on = False
     sb.highlights = None
     sb.interval = None

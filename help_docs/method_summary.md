@@ -41,6 +41,8 @@ self.send_keys(selector, text, by="css selector", timeout=None)
 # Duplicates:
 # self.add_text(selector, text, by="css selector", timeout=None)
 
+self.press_keys(selector, text, by="css selector", timeout=None)
+
 self.submit(selector, by="css selector")
 
 self.clear(selector, by="css selector", timeout=None)
@@ -280,6 +282,7 @@ self.get_new_driver(
     undetectable=None,
     uc_cdp_events=None,
     uc_subprocess=None,
+    log_cdp_events=None,
     no_sandbox=None,
     disable_gpu=None,
     headless2=None,
@@ -360,13 +363,14 @@ self.bring_active_window_to_front()
 
 self.bring_to_front(selector, by="css selector")
 
-self.highlight_click(selector, by="css selector", loops=3, scroll=True)
+self.highlight_click(selector, by="css selector", loops=3, scroll=True, timeout=None)
 
-self.highlight_type(selector, text, by="css selector", loops=3, scroll=True)
+self.highlight_type(selector, text, by="css selector", loops=3, scroll=True, timeout=None)
 # Duplicates:
-# self.highlight_update_text(selector, text, by="css selector", loops=3, scroll=True)
+# self.highlight_update_text(
+#     selector, text, by="css selector", loops=3, scroll=True, timeout=None)
 
-self.highlight(selector, by="css selector", loops=4, scroll=True)
+self.highlight(selector, by="css selector", loops=4, scroll=True, timeout=None)
 
 self.press_up_arrow(selector="html", times=1, by="css selector")
 
@@ -467,7 +471,11 @@ self.get_downloads_folder()
 
 self.get_browser_downloads_folder()
 
+self.get_downloaded_files(regex=None, browser=False)
+
 self.get_path_of_downloaded_file(file, browser=False)
+
+self.get_data_from_downloaded_file(file, timeout=None, browser=False)
 
 self.is_downloaded_file_present(file, browser=False)
 
@@ -479,6 +487,8 @@ self.delete_downloaded_file_if_present(file, browser=False)
 self.assert_downloaded_file(file, timeout=None, browser=False)
 
 self.assert_downloaded_file_regex(regex, timeout=None, browser=False)
+
+self.assert_data_in_downloaded_file(data, file, timeout=None, browser=False)
 
 self.assert_true(expr, msg=None)
 
@@ -627,11 +637,9 @@ self.add_slide(
     content=None, image=None, code=None, iframe=None,
     content2=None, notes=None, transition=None, name=None)
 
-self.save_presentation(
-    name=None, filename=None, show_notes=False, interval=0)
+self.save_presentation(name=None, filename=None, show_notes=False, interval=0)
 
-self.begin_presentation(
-    name=None, filename=None, show_notes=False, interval=0)
+self.begin_presentation(name=None, filename=None, show_notes=False, interval=0)
 
 ############
 
@@ -684,8 +692,7 @@ self.create_introjs_tour(name=None)
 
 self.set_introjs_colors(theme_color=None, hover_color=None)
 
-self.add_tour_step(
-    message, selector=None, name=None, title=None, theme=None, alignment=None)
+self.add_tour_step(message, selector=None, name=None, title=None, theme=None, alignment=None)
 
 self.play_tour(name=None, interval=0)
 # Duplicates:
@@ -719,8 +726,7 @@ self.post_success_message(message, duration=None, pause=True)
 
 self.post_error_message(message, duration=None, pause=True)
 
-self.set_messenger_theme(
-    theme="default", location="default", max_messages="default")
+self.set_messenger_theme(theme="default", location="default", max_messages="default")
 
 ############
 
@@ -736,6 +742,7 @@ self.generate_traffic_chain(pages, loops=1)
 
 self.get_element(selector, by="css selector", timeout=None)
 # Duplicates:
+# self.locator(selector, by="css selector", timeout=None)
 # self.wait_for_element_present(selector, by="css selector", timeout=None)
 
 self.wait_for_query_selector(selector, by="css selector", timeout=None)
@@ -865,25 +872,21 @@ self.quit_extra_driver(driver=None)
 
 ############
 
-self.check_window(
-    name="default", level=0, baseline=False, check_domain=True, full_diff=False)
+self.check_window(name="default", level=0, baseline=False, check_domain=True, full_diff=False)
 
 ############
 
-self.deferred_assert_element(
-    selector, by="css selector", timeout=None, fs=False)
+self.deferred_assert_element(selector, by="css selector", timeout=None, fs=False)
 # Duplicates:
 # self.delayed_assert_element(
 #     selector, by="css selector", timeout=None, fs=False)
 
-self.deferred_assert_element_present(
-    selector, by="css selector", timeout=None, fs=False)
+self.deferred_assert_element_present(selector, by="css selector", timeout=None, fs=False)
 # Duplicates:
 # self.delayed_assert_element_present(
 #     selector, by="css selector", timeout=None, fs=False)
 
-self.deferred_assert_text(
-    text, selector="html", by="css selector", timeout=None, fs=False)
+self.deferred_assert_text(text, selector="html", by="css selector", timeout=None, fs=False)
 # Duplicates:
 # self.delayed_assert_text(
 #     text, selector="html", by="css selector", timeout=None, fs=False)
@@ -914,7 +917,109 @@ self.process_deferred_asserts(print_only=False)
 
 self.fail(msg=None)  # Inherited from "unittest"
 
+self._check_browser()  # Fails test cleanly if the active window is closed
+
 self._print(TEXT)  # Calls Python's print() / Allows for translations
+
+############
+
+# "driver"-specific methods added by SeleniumBase
+
+driver.default_get(url)  # Because driver.get(url) works differently in UC Mode
+
+driver.open(url)  # Like driver.get(), but allows partial URLs without protocol
+
+driver.click(selector)
+
+driver.click_link(link_text)
+
+driver.click_if_visible(selector)
+
+driver.click_active_element()
+
+driver.send_keys(selector, text)
+
+driver.press_keys(selector, text)
+
+driver.type(selector, text)
+
+driver.submit(selector)
+
+driver.assert_element(selector)
+
+driver.assert_element_present(selector)
+
+driver.assert_element_not_visible(selector)
+
+driver.assert_text(text, selector)
+
+driver.assert_exact_text(text, selector)
+
+driver.wait_for_element(selector)
+
+driver.wait_for_text(text, selector)
+
+driver.wait_for_exact_text(text, selector)
+
+driver.wait_for_and_accept_alert()
+
+driver.wait_for_and_dismiss_alert()
+
+driver.is_element_present(selector)
+
+driver.is_element_visible(selector)
+
+driver.is_text_visible(text, selector)
+
+driver.is_exact_text_visible(text, selector)
+
+driver.is_attribute_present(selector, attribute)
+
+driver.get_text(selector)
+
+driver.js_click(selector)
+
+driver.get_active_element_css()
+
+driver.get_locale_code()
+
+driver.get_origin()
+
+driver.get_user_agent()
+
+driver.highlight(selector)
+
+driver.highlight_click(selector)
+
+driver.sleep(seconds)
+
+driver.locator(selector)
+
+driver.get_attribute(selector, attribute)
+
+driver.get_page_source()
+
+driver.get_title()
+
+driver.switch_to_frame(frame)
+
+############
+
+# "driver"-specific methods added by SeleniumBase for UC Mode: "--uc" / uc=True
+
+driver.uc_open(url)
+
+driver.uc_open_with_tab(url)
+
+driver.uc_open_with_reconnect(url, reconnect_time=None)
+
+driver.reconnect(timeout)
+
+driver.uc_click(
+    selector, by="css selector",
+    timeout=settings.SMALL_TIMEOUT, reconnect_time=None)
+
+driver.uc_switch_to_frame(frame)
 ```
 
 --------
@@ -933,6 +1038,7 @@ self._print(TEXT)  # Calls Python's print() / Allows for translations
 * [test_login.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_login.py)
 * [test_markers.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_markers.py)
 * [test_swag_labs.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_swag_labs.py)
+* [test_simple_login.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_simple_login.py)
 * [test_suite.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_suite.py)
 * [test_tinymce.py](https://github.com/seleniumbase/SeleniumBase/blob/master/examples/test_tinymce.py)
 * And many more...

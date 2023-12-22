@@ -54,14 +54,16 @@ def SB(
     undetectable=None,  # Use undetected-chromedriver to evade bot-detection.
     uc_cdp_events=None,  # Capture CDP events in undetected-chromedriver mode.
     uc_subprocess=None,  # Use undetected-chromedriver as a subprocess.
+    log_cdp_events=None,  # Capture {"performance": "ALL", "browser": "ALL"}
     incognito=None,  # Enable Chromium's Incognito mode.
     guest_mode=None,  # Enable Chromium's Guest mode.
     dark_mode=None,  # Enable Chromium's Dark mode.
     devtools=None,  # Open Chromium's DevTools when the browser opens.
     remote_debug=None,  # Enable Chrome's Debugger on "http://localhost:9222".
     enable_3d_apis=None,  # Enable WebGL and 3D APIs.
-    swiftshader=None,  # Use Chrome's "--use-gl=swiftshader" feature.
+    swiftshader=None,  # Chrome: --use-gl=angle / --use-angle=swiftshader-webgl
     ad_block_on=None,  # Block some types of display ads from loading.
+    host_resolver_rules=None,  # Set host-resolver-rules, comma-separated.
     block_images=None,  # Block images from loading during tests.
     do_not_track=None,  # Tell websites that you don't want to be tracked.
     chromium_arg=None,  # "ARG=N,ARG2" (Set Chromium args, ","-separated.)
@@ -99,6 +101,7 @@ def SB(
     undetected=None,  # Shortcut / Duplicate of "undetectable".
     uc_cdp=None,  # Shortcut / Duplicate of "uc_cdp_events".
     uc_sub=None,  # Shortcut / Duplicate of "uc_subprocess".
+    log_cdp=None,  # Shortcut / Duplicate of "log_cdp_events".
     wire=None,  # Shortcut / Duplicate of "use_wire".
     pls=None,  # Shortcut / Duplicate of "page_load_strategy".
     sjw=None,  # Shortcut / Duplicate of "skip_js_waits".
@@ -127,7 +130,9 @@ def SB(
 
     sb_config_backup = sb_config
     sb_config._do_sb_post_mortem = False
+    is_windows = shared_utils.is_windows()
     sys_argv = sys.argv
+    arg_join = " ".join(sys_argv)
     archive_logs = False
     existing_runner = False
     do_log_folder_setup = False  # The first "test=True" run does it
@@ -307,7 +312,19 @@ def SB(
             is_mobile = True
         else:
             is_mobile = False
+    if is_mobile:
+        sb_config.mobile_emulator = True
     proxy_string = proxy
+    if proxy_string is None and "--proxy" in arg_join:
+        if "--proxy=" in arg_join:
+            proxy_string = arg_join.split("--proxy=")[1].split(" ")[0]
+        elif "--proxy " in arg_join:
+            proxy_string = arg_join.split("--proxy ")[1].split(" ")[0]
+        if proxy_string:
+            if proxy_string.startswith('"') and proxy_string.endswith('"'):
+                proxy_string = proxy_string[1:-1]
+            elif proxy_string.startswith("'") and proxy_string.endswith("'"):
+                proxy_string = proxy_string[1:-1]
     user_agent = agent
     recorder_mode = False
     if recorder_ext:
@@ -369,7 +386,6 @@ def SB(
         sb_config.proxy_driver = True
     if variables and type(variables) is str and len(variables) > 0:
         import ast
-
         bad_input = False
         if (
             not variables.startswith("{")
@@ -444,9 +460,33 @@ def SB(
         uc_subprocess = True
     else:
         uc_subprocess = False
-    if undetectable and is_mobile:
-        is_mobile = False
-        user_agent = None
+    if uc_cdp_events or uc_cdp:
+        undetectable = True
+        uc_cdp_events = True
+    elif (
+        "--uc-cdp-events" in sys_argv
+        or "--uc_cdp_events" in sys_argv
+        or "--uc-cdp" in sys_argv
+        or "--uc_cdp" in sys_argv
+    ):
+        undetectable = True
+        uc_cdp_events = True
+    else:
+        uc_cdp_events = False
+    if log_cdp_events is None and log_cdp is None:
+        if (
+            "--log-cdp-events" in sys_argv
+            or "--log_cdp_events" in sys_argv
+            or "--log-cdp" in sys_argv
+            or "--log_cdp" in sys_argv
+        ):
+            log_cdp_events = True
+        else:
+            log_cdp_events = False
+    elif log_cdp_events or log_cdp:
+        log_cdp_events = True
+    else:
+        log_cdp_events = False
     if use_auto_ext is None:
         if "--use-auto-ext" in sys_argv:
             use_auto_ext = True
@@ -565,8 +605,16 @@ def SB(
             ad_block_on = True
         else:
             ad_block_on = False
+    if host_resolver_rules is None:
+        if '--host-resolver-rules="' in arg_join:
+            host_resolver_rules = (
+                arg_join.split('--host-resolver-rules="')[1].split('"')[0]
+            )
+        elif '--host_resolver_rules="' in arg_join:
+            host_resolver_rules = (
+                arg_join.split("--host_resolver_rules=")[1].split('"')[0]
+            )
     if driver_version is None:
-        arg_join = " ".join(sys_argv)
         if "--driver-version=" in arg_join:
             driver_version = (
                 arg_join.split("--driver-version=")[1].split(" ")[0]
@@ -637,6 +685,7 @@ def SB(
     sb_config.undetectable = undetectable
     sb_config.uc_cdp_events = uc_cdp_events
     sb_config.uc_subprocess = uc_subprocess
+    sb_config.log_cdp_events = log_cdp_events
     sb_config.no_sandbox = None
     sb_config.disable_gpu = None
     sb_config.disable_js = disable_js
@@ -671,6 +720,7 @@ def SB(
     sb_config.dashboard = False
     sb_config._dashboard_initialized = False
     sb_config.message_duration = message_duration
+    sb_config.host_resolver_rules = host_resolver_rules
     sb_config.block_images = block_images
     sb_config.do_not_track = do_not_track
     sb_config.use_wire = use_wire
@@ -739,6 +789,7 @@ def SB(
     sb.undetectable = sb_config.undetectable
     sb.uc_cdp_events = sb_config.uc_cdp_events
     sb.uc_subprocess = sb_config.uc_subprocess
+    sb.log_cdp_events = sb_config.log_cdp_events
     sb.no_sandbox = sb_config.no_sandbox
     sb.disable_gpu = sb_config.disable_gpu
     sb.disable_js = sb_config.disable_js
@@ -771,6 +822,7 @@ def SB(
     sb.dashboard = sb_config.dashboard
     sb._dash_initialized = sb_config._dashboard_initialized
     sb.message_duration = sb_config.message_duration
+    sb.host_resolver_rules = sb_config.host_resolver_rules
     sb.block_images = sb_config.block_images
     sb.do_not_track = sb_config.do_not_track
     sb.use_wire = sb_config.use_wire
@@ -786,7 +838,7 @@ def SB(
     sb.proxy_pac_url = sb_config.proxy_pac_url
     sb.multi_proxy = sb_config.multi_proxy
     sb.enable_3d_apis = sb_config.enable_3d_apis
-    sb.swiftshader = sb_config.swiftshader
+    sb._swiftshader = sb_config.swiftshader
     sb.ad_block_on = sb_config.ad_block_on
     sb.highlights = sb_config.highlights
     sb.interval = sb_config.interval
@@ -801,8 +853,10 @@ def SB(
     terminal_width = shared_utils.get_terminal_width()
     if test:
         import colorama
-
-        colorama.init(autoreset=True)
+        if is_windows and hasattr(colorama, "just_fix_windows_console"):
+            colorama.just_fix_windows_console()
+        else:
+            colorama.init(autoreset=True)
         c1 = colorama.Fore.GREEN
         b1 = colorama.Style.BRIGHT
         cr = colorama.Style.RESET_ALL
@@ -859,6 +913,13 @@ def SB(
     finally:
         if sb._has_failure and "--pdb" in sys_argv:
             sb_config._do_sb_post_mortem = True
+        elif (
+            "--final-debug" in sys_argv
+            or "--final-trace" in sys_argv
+            or "--fdebug" in sys_argv
+            or "--ftrace" in sys_argv
+        ):
+            sb_config._do_sb_final_trace = True
         try:
             sb.tearDown()
         except Exception as t_e:

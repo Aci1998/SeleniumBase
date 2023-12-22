@@ -10,6 +10,7 @@ from seleniumbase.core import log_helper
 from seleniumbase.fixtures import constants
 from seleniumbase.fixtures import shared_utils
 
+is_windows = shared_utils.is_windows()
 python3_11_or_newer = False
 if sys.version_info >= (3, 11):
     python3_11_or_newer = True
@@ -75,6 +76,7 @@ def pytest_addoption(parser):
     --message-duration=SECONDS  (The time length for Messenger alerts.)
     --check-js  (Check for JavaScript errors after page loads.)
     --ad-block  (Block some types of display ads from loading.)
+    --host-resolver-rules=RULES  (Set host-resolver-rules, comma-separated.)
     --block-images  (Block images from loading during tests.)
     --do-not-track  (Indicate to websites that you don't want to be tracked.)
     --verify-delay=SECONDS  (The delay before MasterQA verification checks.)
@@ -89,12 +91,13 @@ def pytest_addoption(parser):
     --enable-sync  (Enable "Chrome Sync" on websites.)
     --uc | --undetected  (Use undetected-chromedriver to evade bot-detection.)
     --uc-cdp-events  (Capture CDP events when running in "--undetected" mode.)
+    --log-cdp  ("goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"})
     --remote-debug  (Sync to Chrome Remote Debugger chrome://inspect/#devices)
-    --final-debug  (Enter Debug Mode after each test ends. Don't use with CI!)
+    --ftrace | --final-trace  (Debug Mode after each test. Don't use with CI!)
     --dashboard  (Enable the SeleniumBase Dashboard. Saved at: dashboard.html)
     --dash-title=STRING  (Set the title shown for the generated dashboard.)
     --enable-3d-apis  (Enables WebGL and 3D APIs.)
-    --swiftshader  (Use Chrome's "--use-gl=swiftshader" feature.)
+    --swiftshader  (Chrome "--use-gl=angle" / "--use-angle=swiftshader-webgl")
     --incognito  (Enable Chrome's Incognito mode.)
     --guest  (Enable Chrome's Guest mode.)
     --dark  (Enable Chrome's Dark mode.)
@@ -119,7 +122,10 @@ def pytest_addoption(parser):
     cr = ""
     if "linux" not in sys.platform:
         # This will be seen when typing "pytest --help" on the command line.
-        colorama.init(autoreset=True)
+        if is_windows and hasattr(colorama, "just_fix_windows_console"):
+            colorama.just_fix_windows_console()
+        else:
+            colorama.init(autoreset=True)
         c1 = colorama.Fore.BLUE + colorama.Back.LIGHTCYAN_EX
         c2 = colorama.Fore.BLUE + colorama.Back.LIGHTGREEN_EX
         c3 = colorama.Fore.MAGENTA + colorama.Back.LIGHTYELLOW_EX
@@ -367,6 +373,7 @@ def pytest_addoption(parser):
             constants.Environment.DEVELOP,
             constants.Environment.PRODUCTION,
             constants.Environment.PERFORMANCE,
+            constants.Environment.REPLICA,
             constants.Environment.FEDRAMP,
             constants.Environment.OFFLINE,
             constants.Environment.ONLINE,
@@ -550,7 +557,7 @@ def pytest_addoption(parser):
         help="""Designates the three device metrics of the mobile
                 emulator: CSS Width, CSS Height, and Pixel-Ratio.
                 Format: A comma-separated string with the 3 values.
-                Example: "375,734,3"
+                Examples: "375,734,5" or "411,731,3" or "390,715,3"
                 Default: None. (Will use default values if None)""",
     )
     parser.addoption(
@@ -792,8 +799,8 @@ def pytest_addoption(parser):
         dest="message_duration",
         default=None,
         help="""Setting this overrides the default time that
-                messenger notifications remain visible when reaching
-                assert statements during Demo Mode.""",
+                messenger notifications remain visible when
+                reaching assert statements during Demo Mode.""",
     )
     parser.addoption(
         "--check_js",
@@ -815,6 +822,25 @@ def pytest_addoption(parser):
         default=False,
         help="""Using this makes WebDriver block display ads
                 that are defined in ad_block_list.AD_BLOCK_LIST.""",
+    )
+    parser.addoption(
+        "--host_resolver_rules",
+        "--host-resolver-rules",
+        action="store",
+        dest="host_resolver_rules",
+        default=None,
+        help="""Use this option to set "host-resolver-rules".
+                This lets you re-map traffic from any domain.
+                Eg. "MAP www.google-analytics.com 0.0.0.0".
+                Eg. "MAP * ~NOTFOUND , EXCLUDE myproxy".
+                Eg. "MAP * 0.0.0.0 , EXCLUDE 127.0.0.1".
+                Eg. "MAP *.google.com myproxy".
+                Find more examples on these pages:
+                (https://www.electronjs.org/docs/
+                 latest/api/command-line-switches)
+                (https://www.chromium.org/developers/
+                 design-documents/network-stack/socks-proxy/)
+                Use comma-separation for multiple host rules.""",
     )
     parser.addoption(
         "--block_images",
@@ -1007,6 +1033,17 @@ def pytest_addoption(parser):
         help="""(DEPRECATED) - GPU is disabled if no swiftshader.
                 Using this enables the "Disable GPU" feature.
                 (GPU is disabled by default if swiftshader off.)""",
+    )
+    parser.addoption(
+        "--log_cdp",
+        "--log-cdp",
+        "--log_cdp_events",
+        "--log-cdp-events",
+        action="store_true",
+        dest="log_cdp_events",
+        default=None,
+        help="""Capture CDP events. Then you can print them.
+                Eg. print(driver.get_log("performance"))""",
     )
     parser.addoption(
         "--remote_debug",
@@ -1395,10 +1432,6 @@ def pytest_addoption(parser):
             "\n  If you need both, override get_new_driver() from BaseCase:"
             "\n  https://seleniumbase.io/help_docs/syntax_formats/#sb_sf_09\n"
         )
-    if undetectable and "--mobile" in sys_argv:
-        raise Exception(
-            "\n  SeleniumBase doesn't support mixing --uc with --mobile\n"
-        )
 
 
 def pytest_configure(config):
@@ -1486,6 +1519,7 @@ def pytest_configure(config):
     sb_config.message_duration = config.getoption("message_duration")
     sb_config.js_checking_on = config.getoption("js_checking_on")
     sb_config.ad_block_on = config.getoption("ad_block_on")
+    sb_config.host_resolver_rules = config.getoption("host_resolver_rules")
     sb_config.block_images = config.getoption("block_images")
     sb_config.do_not_track = config.getoption("do_not_track")
     sb_config.verify_delay = config.getoption("verify_delay")
@@ -1520,6 +1554,7 @@ def pytest_configure(config):
         sb_config.undetectable = True
     sb_config.no_sandbox = config.getoption("no_sandbox")
     sb_config.disable_gpu = config.getoption("disable_gpu")
+    sb_config.log_cdp_events = config.getoption("log_cdp_events")
     sb_config.remote_debug = config.getoption("remote_debug")
     sb_config.final_debug = config.getoption("final_debug")
     sb_config.dashboard = config.getoption("dashboard")
@@ -1552,6 +1587,7 @@ def pytest_configure(config):
     sb_config._SMALL_TIMEOUT = settings.SMALL_TIMEOUT
     sb_config._LARGE_TIMEOUT = settings.LARGE_TIMEOUT
     sb_config.pytest_html_report = config.getoption("htmlpath")  # --html=FILE
+    sb_config._sb_class = None  # (Used with the sb fixture for "--rcs")
     sb_config._sb_node = {}  # sb node dictionary (Used with the sb fixture)
     # Dashboard-specific variables
     sb_config._results = {}  # SBase Dashboard test results
@@ -1816,7 +1852,10 @@ def pytest_collection_finish(session):
         c1 = ""
         cr = ""
         if "linux" not in sys.platform:
-            colorama.init(autoreset=True)
+            if is_windows and hasattr(colorama, "just_fix_windows_console"):
+                colorama.just_fix_windows_console()
+            else:
+                colorama.init(autoreset=True)
             c1 = colorama.Fore.BLUE + colorama.Back.LIGHTCYAN_EX
             cr = colorama.Style.RESET_ALL
         if sb_config._multithreaded:
@@ -1860,10 +1899,7 @@ def pytest_runtest_teardown(item):
                         and self.driver
                         and "--pdb" not in sys_argv
                     ):
-                        if not (
-                            shared_utils.is_windows()
-                            or self.driver.service.process
-                        ):
+                        if not (is_windows or self.driver.service.process):
                             self.driver.quit()
                 except Exception:
                     pass
@@ -1873,7 +1909,7 @@ def pytest_runtest_teardown(item):
             ):
                 try:
                     if (
-                        not shared_utils.is_windows()
+                        not is_windows
                         or sb_config._sb_pdb_driver.service.process
                     ):
                         sb_config._sb_pdb_driver.quit()
@@ -1991,7 +2027,7 @@ def _perform_pytest_unconfigure_():
         if sb_config.shared_driver:
             try:
                 if (
-                    not shared_utils.is_windows()
+                    not is_windows
                     or sb_config.browser == "ie"
                     or sb_config.shared_driver.service.process
                 ):
@@ -2178,6 +2214,7 @@ def sb(request):
     Usage example: "def test_one(sb):"
     You may need to use this for tests that use other pytest fixtures."""
     from seleniumbase import BaseCase
+    from seleniumbase.core import session_helper
 
     class BaseClass(BaseCase):
         def setUp(self):
@@ -2191,6 +2228,11 @@ def sb(request):
             pass
 
     if request.cls:
+        if sb_config.reuse_class_session:
+            the_class = str(request.cls).split(".")[-1].split("'")[0]
+            if the_class != sb_config._sb_class:
+                session_helper.end_reused_class_session_as_needed()
+                sb_config._sb_class = the_class
         request.cls.sb = BaseClass("base_method")
         request.cls.sb.setUp()
         request.cls.sb._needs_tearDown = True

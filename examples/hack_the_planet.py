@@ -59,8 +59,10 @@ class HackTests(BaseCase):
 
         self.open("https://google.com/ncr")
         self.hide_elements("iframe")
-        self.set_text_content('a[href*="about.google"]', ayb)
-        self.set_text_content('a[href*="store.google"]', abtu)
+        if self.is_element_visible('a[href*="about.google"]'):
+            self.set_text_content('a[href*="about.google"]', ayb)
+            if self.is_element_visible('a[href*="store.google"]'):
+                self.set_text_content('a[href*="store.google"]', abtu)
         self.set_text_content('a[href*="mail.google.com"]', ayb)
         self.set_text_content('a[href*="google.com/img"]', abtu)
         self.set_attributes('[value="Google Search"]', "value", ayb)
@@ -74,8 +76,10 @@ class HackTests(BaseCase):
         )
         self.add_css_style(zoom_in)
         self.hide_elements("iframe")
-        self.highlight('a[href*="about.google"]', loops=3)
-        self.highlight('a[href*="store.google"]', loops=3)
+        if self.is_element_visible('a[href*="about.google"]'):
+            self.highlight('a[href*="about.google"]', loops=3)
+            if self.is_element_visible('a[href*="store.google"]'):
+                self.highlight('a[href*="store.google"]', loops=3)
         self.highlight('a[href*="mail.google.com"]', loops=3)
         self.highlight('a[href*="google.com/img"]', loops=3)
         self.highlight('form[role="search"]', loops=8)
@@ -93,7 +97,10 @@ class HackTests(BaseCase):
         self.open("https://dev.to/top/infinity")
         self.click_if_visible('button[aria-label="Close campaign banner"]')
         self.click_if_visible('svg[aria-label="Close campaign banner"]')
-        self.hide_elements('main div:contains("Pinned")')
+        try:
+            self.hide_elements('main div:contains("Pinned")')
+        except Exception:
+            pass
         self.set_text_content('nav a[data-text="Relevant"]', "ALL")
         self.set_text_content('nav a[data-text="Latest"]', "YOUR")
         self.set_text_content('nav a[data-text="Top"]', "BASE")
@@ -284,12 +291,12 @@ class HackTests(BaseCase):
         self.open("https://wordpress.com/")
         zoom_out = "h1.is-page-header{zoom: 0.8;-moz-transform: scale(0.8);}"
         self.add_css_style(zoom_out)
-        zoom_in = "div.lp-is-cta-blue{zoom: 1.4;-moz-transform: scale(1.4);}"
+        zoom_in = "a.wp-element-button{zoom: 1.4;-moz-transform: scale(1.4);}"
         self.add_css_style(zoom_in)
         self.set_text_content("h1.is-page-header", aybabtu)
-        self.set_text_content("main div.lp-is-cta-blue", "Use SeleniumBase!")
+        self.set_text_content("a.wp-element-button", "Use SeleniumBase!")
         self.highlight("h1.is-page-header", loops=6, scroll=False)
-        self.highlight("main div.lp-is-cta-blue", loops=4, scroll=False)
+        self.highlight("a.wp-element-button", loops=4, scroll=False)
 
         self.open("https://seleniumbase.com/")
         self.set_text_content("h1", aybabtu)
@@ -308,10 +315,9 @@ class HackTests(BaseCase):
         self.set_text_content('a[href*="jira/enterprise"]', abtu)
         self.set_text_content('a[href="/software/jira/features"]', "")
         self.set_text_content("h1", aybabtu)
-        self.highlight("ul.imkt-navbar__link-list", loops=2, scroll=False)
-        self.highlight('a[href*="jira/pricing"]', loops=3, scroll=False)
-        self.highlight('a[href*="jira/enterprise"]', loops=3, scroll=False)
-        self.highlight("h1", loops=6, scroll=False)
+        self.highlight('a[href*="jira/pricing"]', loops=5, scroll=False)
+        self.highlight('a[href*="jira/enterprise"]', loops=6, scroll=False)
+        self.highlight("h1", loops=8, scroll=False)
 
         self.open("https://status.iboss.com/ibcloud/app/cloudStatus.html")
         self.wait_for_element_clickable('div[translate*="cloudStatus"]')

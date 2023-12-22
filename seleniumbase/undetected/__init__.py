@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import requests
 import subprocess
 import sys
 import time
@@ -138,8 +139,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         options._session = self
         debug_host = "127.0.0.1"
         debug_port = 9222
-        import requests
-
         special_port_free = False  # If the port isn't free, don't use 9222
         try:
             res = requests.get("http://127.0.0.1:9222", timeout=1)
@@ -151,7 +150,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         sys_argv = sys.argv
         arg_join = " ".join(sys_argv)
         from seleniumbase import config as sb_config
-
         if (
             (("-n" in sys.argv) or (" -n=" in arg_join) or ("-c" in sys.argv))
             or (hasattr(sb_config, "multi_proxy") and sb_config.multi_proxy)
@@ -197,7 +195,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 keep_user_data_dir = True
             else:
                 import tempfile
-
                 user_data_dir = os.path.normpath(tempfile.mkdtemp())
                 keep_user_data_dir = False
                 arg = "--user-data-dir=%s" % user_data_dir
@@ -206,7 +203,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         if not language:
             try:
                 import locale
-
                 language = locale.getlocale()[0].replace("_", "-")
             except Exception:
                 pass
@@ -218,10 +214,17 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 language = "en-US"
         options.add_argument("--lang=%s" % language)
         if not options.binary_location:
-            options.binary_location = (
+            binary_location = (
                 browser_executable_path or find_chrome_executable()
             )
-        self._delay = 2
+            if binary_location:
+                options.binary_location = binary_location
+            else:
+                # Improve the default error message in this situation.
+                # Setting options.binary_location to None results in:
+                #    "TypeError: Binary Location Must be a String"
+                raise Exception("Chrome not found! Install it first!")
+        self._delay = constants.UC.RECONNECT_TIME
         self.user_data_dir = user_data_dir
         self.keep_user_data_dir = keep_user_data_dir
         if suppress_welcome:
@@ -241,7 +244,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             options.handle_prefs(user_data_dir)
         try:
             import json
-
             with open(
                 os.path.join(
                     os.path.abspath(user_data_dir),
@@ -286,19 +288,22 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 )
                 self.browser_pid = browser.pid
             service_ = None
+            log_output = subprocess.PIPE
+            if sys.version_info < (3, 8):
+                log_output = os.devnull
             if patch_driver:
                 service_ = selenium.webdriver.chrome.service.Service(
                     executable_path=self.patcher.executable_path,
                     service_args=["--disable-build-check"],
                     port=port,
-                    log_output=os.devnull,
+                    log_output=log_output,
                 )
             else:
                 service_ = selenium.webdriver.chrome.service.Service(
                     executable_path=driver_executable_path,
                     service_args=["--disable-build-check"],
                     port=port,
-                    log_output=os.devnull,
+                    log_output=log_output,
                 )
             if hasattr(service_, "creationflags"):
                 setattr(service_, "creationflags", creationflags)
@@ -321,7 +326,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             return super().__getattribute__(item)
         else:
             import inspect
-
             original = super().__getattribute__(item)
             if inspect.ismethod(original) and not inspect.isclass(original):
                 def newfunc(*args, **kwargs):
@@ -333,18 +337,23 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         return object.__dir__(self)
 
     def _get_cdc_props(self):
-        return self.execute_script(
-            """
-            let objectToInspect = window,
-                result = [];
-            while(objectToInspect !== null)
-            { result = result.concat(
-                Object.getOwnPropertyNames(objectToInspect)
-              );
-              objectToInspect = Object.getPrototypeOf(objectToInspect); }
-            return result.filter(i => i.match(/^[a-z]{3}_[a-z]{22}_.*/i))
-            """
-        )
+        cdc_props = []
+        try:
+            cdc_props = self.execute_script(
+                """
+                let objectToInspect = window,
+                    result = [];
+                while(objectToInspect !== null)
+                { result = result.concat(
+                    Object.getOwnPropertyNames(objectToInspect)
+                  );
+                  objectToInspect = Object.getPrototypeOf(objectToInspect); }
+                return result.filter(i => i.match(/^[a-z]{3}_[a-z]{22}_.*/i))
+                """
+            )
+        except Exception:
+            pass
+        return cdc_props
 
     def _hook_remove_cdc_props(self, cdc_props):
         if len(cdc_props) < 1:
@@ -365,6 +374,7 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         cdc_props = self._get_cdc_props()
         if len(cdc_props) > 0:
             self._hook_remove_cdc_props(cdc_props)
+            time.sleep(0.05)
 
     def get(self, url):
         self.remove_cdc_props_as_needed()
@@ -436,6 +446,13 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         try:
             logger.debug("Terminating the UC browser")
             os.kill(self.browser_pid, 15)
+            if "linux" in sys.platform:
+                os.waitpid(self.browser_pid, 0)
+                time.sleep(0.02)
+            else:
+                time.sleep(0.04)
+        except (AttributeError, ChildProcessError, RuntimeError, OSError):
+            time.sleep(0.05)
         except TimeoutError as e:
             logger.debug(e, exc_info=True)
         except Exception:
@@ -455,7 +472,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             and not self.keep_user_data_dir
         ):
             import shutil
-
             for _ in range(5):
                 try:
                     shutil.rmtree(self.user_data_dir, ignore_errors=False)
@@ -495,10 +511,7 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.service.stop()
-        time.sleep(self._delay)
-        self.service.start()
-        self.start_session()
+        self.reconnect(timeout=self._delay)
 
     def __hash__(self):
         return hash(self.options.debugger_address)
@@ -506,7 +519,6 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
 
 def find_chrome_executable():
     from seleniumbase.core import detect_b_ver
-
     binary_location = detect_b_ver.get_binary_location("google-chrome", True)
     if os.path.exists(binary_location) and os.access(binary_location, os.X_OK):
         return os.path.normpath(binary_location)
