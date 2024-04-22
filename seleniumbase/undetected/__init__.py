@@ -427,7 +427,34 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 self.service.stop()
             except Exception:
                 pass
-            time.sleep(timeout)
+            if isinstance(timeout, str):
+                if timeout.lower() == "breakpoint":
+                    breakpoint()  # To continue:
+                    pass  # Type "c" & press ENTER!
+            else:
+                time.sleep(timeout)
+            try:
+                self.service.start()
+            except Exception:
+                pass
+        try:
+            self.start_session()
+        except Exception:
+            pass
+
+    def disconnect(self):
+        """Stops the chromedriver service that runs in the background.
+        To use driver methods again, you MUST call driver.connect()"""
+        if hasattr(self, "service"):
+            try:
+                self.service.stop()
+            except Exception:
+                pass
+
+    def connect(self):
+        """Starts the chromedriver service that runs in the background
+        and recreates the session."""
+        if hasattr(self, "service"):
             try:
                 self.service.start()
             except Exception:

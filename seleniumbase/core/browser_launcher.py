@@ -27,6 +27,7 @@ from seleniumbase.core import download_helper
 from seleniumbase.core import proxy_helper
 from seleniumbase.core import sb_driver
 from seleniumbase.fixtures import constants
+from seleniumbase.fixtures import js_utils
 from seleniumbase.fixtures import shared_utils
 
 urllib3.disable_warnings()
@@ -169,6 +170,9 @@ def extend_driver(driver):
     driver.assert_text = DM.assert_text
     driver.assert_exact_text = DM.assert_exact_text
     driver.wait_for_element = DM.wait_for_element
+    driver.wait_for_element_visible = DM.wait_for_element_visible
+    driver.wait_for_element_present = DM.wait_for_element_present
+    driver.wait_for_selector = DM.wait_for_selector
     driver.wait_for_text = DM.wait_for_text
     driver.wait_for_exact_text = DM.wait_for_exact_text
     driver.wait_for_and_accept_alert = DM.wait_for_and_accept_alert
@@ -186,6 +190,7 @@ def extend_driver(driver):
     driver.get_user_agent = DM.get_user_agent
     driver.highlight = DM.highlight
     driver.highlight_click = DM.highlight_click
+    driver.highlight_if_visible = DM.highlight_if_visible
     driver.sleep = time.sleep
     driver.get_attribute = DM.get_attribute
     driver.get_page_source = DM.get_page_source
@@ -361,9 +366,9 @@ def uc_special_open_if_cf(
                     driver.switch_to.window(driver.window_handles[-1])
                     uc_metrics = {}
                     if (
-                        type(device_width) is int
-                        and type(device_height) is int
-                        and type(device_pixel_ratio) is int
+                        isinstance(device_width, int)
+                        and isinstance(device_height, int)
+                        and isinstance(device_pixel_ratio, int)
                     ):
                         uc_metrics["width"] = device_width
                         uc_metrics["height"] = device_height
@@ -397,18 +402,25 @@ def uc_special_open_if_cf(
 
 
 def uc_open(driver, url):
+    if url.startswith("//"):
+        url = "https:" + url
+    elif ":" not in url:
+        url = "https://" + url
     if (url.startswith("http:") or url.startswith("https:")):
-        time.sleep(0.05)
         with driver:
-            driver.default_get(url)
+            script = 'window.location.href = "%s";' % url
+            js_utils.call_me_later(driver, script, 33)
     else:
         driver.default_get(url)  # The original one
     return None
 
 
 def uc_open_with_tab(driver, url):
+    if url.startswith("//"):
+        url = "https:" + url
+    elif ":" not in url:
+        url = "https://" + url
     if (url.startswith("http:") or url.startswith("https:")):
-        time.sleep(0.05)
         with driver:
             driver.execute_script('window.open("%s","_blank");' % url)
             driver.close()
@@ -422,8 +434,14 @@ def uc_open_with_reconnect(driver, url, reconnect_time=None):
     """Open a url, disconnect chromedriver, wait, and reconnect."""
     if not reconnect_time:
         reconnect_time = constants.UC.RECONNECT_TIME
+    if url.startswith("//"):
+        url = "https:" + url
+    elif ":" not in url:
+        url = "https://" + url
     if (url.startswith("http:") or url.startswith("https:")):
-        driver.execute_script('window.open("%s","_blank");' % url)
+        script = 'window.open("%s","_blank");' % url
+        js_utils.call_me_later(driver, script, 3)
+        time.sleep(0.007)
         driver.close()
         driver.reconnect(reconnect_time)
         driver.switch_to.window(driver.window_handles[-1])
@@ -446,23 +464,41 @@ def uc_click(
         by = "css selector"
     except Exception:
         pass
-    element = driver.wait_for_element(selector, by=by, timeout=timeout)
+    element = driver.wait_for_selector(selector, by=by, timeout=timeout)
+    tag_name = element.tag_name
+    if not tag_name == "span":  # Element must be "visible"
+        element = driver.wait_for_element(selector, by=by, timeout=timeout)
     try:
         element.uc_click(
-            driver, selector, by=by, reconnect_time=reconnect_time
+            driver,
+            selector,
+            by=by,
+            reconnect_time=reconnect_time,
+            tag_name=tag_name,
         )
     except ElementClickInterceptedException:
+        time.sleep(0.16)
         driver.js_click(selector, by=by, timeout=timeout)
+        if not reconnect_time:
+            driver.reconnect(0.1)
+        else:
+            driver.reconnect(reconnect_time)
 
 
-def uc_switch_to_frame(driver, frame):
+def uc_switch_to_frame(driver, frame, reconnect_time=None):
     from selenium.webdriver.remote.webelement import WebElement
     if isinstance(frame, WebElement):
-        driver.reconnect(0.15)
+        if not reconnect_time:
+            driver.reconnect(0.1)
+        else:
+            driver.reconnect(reconnect_time)
         driver.switch_to.frame(frame)
     else:
         iframe = driver.locator(frame)
-        driver.reconnect(0.15)
+        if not reconnect_time:
+            driver.reconnect(0.1)
+        else:
+            driver.reconnect(reconnect_time)
         driver.switch_to.frame(iframe)
 
 
@@ -763,6 +799,7 @@ def _set_chrome_options(
     user_data_dir,
     extension_zip,
     extension_dir,
+    disable_features,
     binary_location,
     driver_version,
     page_load_strategy,
@@ -782,11 +819,12 @@ def _set_chrome_options(
         chrome_options = webdriver.edge.options.Options()
     prefs = {}
     prefs["download.default_directory"] = downloads_path
-    prefs["local_discovery.notifications_enabled"] = False
-    prefs["credentials_enable_service"] = False
-    prefs["download.prompt_for_download"] = False
     prefs["download.directory_upgrade"] = True
+    prefs["download.prompt_for_download"] = False
+    prefs["credentials_enable_service"] = False
+    prefs["local_discovery.notifications_enabled"] = False
     prefs["safebrowsing.enabled"] = False
+    prefs["safebrowsing.disable_download_protection"] = True
     prefs["omnibox-max-zero-suggest-matches"] = 0
     prefs["omnibox-use-existing-autocomplete-client"] = 0
     prefs["omnibox-trending-zero-prefix-suggestions-on-ntp"] = 0
@@ -797,9 +835,8 @@ def _set_chrome_options(
     prefs["omnibox-zero-suggest-prefetching-on-srp"] = 0
     prefs["omnibox-zero-suggest-prefetching-on-web"] = 0
     prefs["omnibox-zero-suggest-in-memory-caching"] = 0
-    prefs["default_content_setting_values.notifications"] = 0
     prefs["content_settings.exceptions.automatic_downloads.*.setting"] = 1
-    prefs["safebrowsing.disable_download_protection"] = True
+    prefs["default_content_setting_values.notifications"] = 0
     prefs["default_content_settings.popups"] = 0
     prefs["managed_default_content_settings.popups"] = 0
     prefs["profile.password_manager_enabled"] = False
@@ -846,9 +883,9 @@ def _set_chrome_options(
         emulator_settings = {}
         device_metrics = {}
         if (
-            type(device_width) is int
-            and type(device_height) is int
-            and type(device_pixel_ratio) is int
+            isinstance(device_width, int)
+            and isinstance(device_height, int)
+            and isinstance(device_pixel_ratio, int)
         ):
             device_metrics["width"] = device_width
             device_metrics["height"] = device_height
@@ -1029,7 +1066,10 @@ def _set_chrome_options(
     if swiftshader:
         chrome_options.add_argument("--use-gl=angle")
         chrome_options.add_argument("--use-angle=swiftshader-webgl")
-    elif not is_using_uc(undetectable, browser_name):
+    elif (
+        not is_using_uc(undetectable, browser_name)
+        and not enable_3d_apis
+    ):
         chrome_options.add_argument("--disable-gpu")
     if not IS_LINUX and is_using_uc(undetectable, browser_name):
         chrome_options.add_argument("--disable-dev-shm-usage")
@@ -1044,6 +1084,7 @@ def _set_chrome_options(
                 binary_loc = detect_b_ver.get_binary_location(br_app, True)
                 if os.path.exists(binary_loc):
                     binary_location = binary_loc
+    extra_disabled_features = []
     if chromium_arg:
         # Can be a comma-separated list of Chromium args
         chromium_arg_list = chromium_arg.split(",")
@@ -1069,8 +1110,13 @@ def _set_chrome_options(
                 )
                 if os.path.exists(binary_loc):
                     binary_location = binary_loc
+            elif "disable-features=" in chromium_arg_item:
+                d_f = chromium_arg_item.split("disable-features=")[-1]
+                extra_disabled_features.append(d_f)
             elif len(chromium_arg_item) >= 3:
                 chrome_options.add_argument(chromium_arg_item)
+    if disable_features:
+        extra_disabled_features.extend(disable_features.split(","))
     if devtools and not headless:
         chrome_options.add_argument("--auto-open-devtools-for-tabs")
     if user_agent:
@@ -1089,19 +1135,38 @@ def _set_chrome_options(
     if headless or headless2 or is_using_uc(undetectable, browser_name):
         chrome_options.add_argument("--disable-renderer-backgrounding")
     chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-client-side-phishing-detection")
+    chrome_options.add_argument("--disable-oopr-debug-crash-dump")
+    chrome_options.add_argument("--disable-top-sites")
     chrome_options.add_argument("--ash-no-nudges")
+    chrome_options.add_argument("--no-crash-upload")
     chrome_options.add_argument("--deny-permission-prompts")
+    included_disabled_features = []
     if user_data_dir:
-        chrome_options.add_argument(
-            "--disable-features=OptimizationHintsFetching,Translate,"
-            "OptimizationTargetPrediction,PrivacySandboxSettings4,"
-            "DownloadBubble,DownloadBubbleV2"
-        )
+        included_disabled_features.append("OptimizationHintsFetching")
+        included_disabled_features.append("Translate")
+        included_disabled_features.append("OptimizationTargetPrediction")
+        included_disabled_features.append("PrivacySandboxSettings4")
+        included_disabled_features.append("DownloadBubble")
+        included_disabled_features.append("DownloadBubbleV2")
+        included_disabled_features.append("InsecureDownloadWarnings")
+        for item in extra_disabled_features:
+            if item not in included_disabled_features:
+                included_disabled_features.append(item)
+        d_f_string = ",".join(included_disabled_features)
+        chrome_options.add_argument("--disable-features=%s" % d_f_string)
     else:
-        chrome_options.add_argument(
-            "--disable-features=OptimizationHintsFetching,Translate,"
-            "OptimizationTargetPrediction,DownloadBubble,DownloadBubbleV2"
-        )
+        included_disabled_features.append("OptimizationHintsFetching")
+        included_disabled_features.append("Translate")
+        included_disabled_features.append("OptimizationTargetPrediction")
+        included_disabled_features.append("DownloadBubble")
+        included_disabled_features.append("DownloadBubbleV2")
+        included_disabled_features.append("InsecureDownloadWarnings")
+        for item in extra_disabled_features:
+            if item not in included_disabled_features:
+                included_disabled_features.append(item)
+        d_f_string = ",".join(included_disabled_features)
+        chrome_options.add_argument("--disable-features=%s" % d_f_string)
     if (
         is_using_uc(undetectable, browser_name)
         and (
@@ -1270,7 +1335,10 @@ def _set_firefox_options(
                 f_pref = firefox_pref_item.split(":")[0]
                 f_pref_value = firefox_pref_item.split(":")[1]
                 needs_conversion = True
-            else:  # More than one ":" in the set. (Too many!)
+            elif firefox_pref_item.count("://") == 1:
+                f_pref = firefox_pref_item.split(":")[0]
+                f_pref_value = ":".join(firefox_pref_item.split(":")[1:])
+            else:  # More than one ":" in the set without a URL.
                 raise Exception(
                     'Incorrect formatting for Firefox "pref:value" set!'
                 )
@@ -1335,6 +1403,7 @@ def get_driver(
     user_data_dir=None,
     extension_zip=None,
     extension_dir=None,
+    disable_features=None,
     binary_location=None,
     driver_version=None,
     page_load_strategy=None,
@@ -1358,7 +1427,7 @@ def get_driver(
         headless = True
     if (
         binary_location
-        and type(binary_location) is str
+        and isinstance(binary_location, str)
         and (
             browser_name == constants.Browser.GOOGLE_CHROME
             or browser_name == constants.Browser.EDGE
@@ -1547,6 +1616,7 @@ def get_driver(
             user_data_dir,
             extension_zip,
             extension_dir,
+            disable_features,
             binary_location,
             driver_version,
             page_load_strategy,
@@ -1602,6 +1672,7 @@ def get_driver(
             user_data_dir,
             extension_zip,
             extension_dir,
+            disable_features,
             binary_location,
             driver_version,
             page_load_strategy,
@@ -1661,6 +1732,7 @@ def get_remote_driver(
     user_data_dir,
     extension_zip,
     extension_dir,
+    disable_features,
     binary_location,
     driver_version,
     page_load_strategy,
@@ -1781,6 +1853,7 @@ def get_remote_driver(
             user_data_dir,
             extension_zip,
             extension_dir,
+            disable_features,
             binary_location,
             driver_version,
             page_load_strategy,
@@ -1813,6 +1886,9 @@ def get_remote_driver(
                 platform_name = desired_caps[key]
             elif re.match("[a-zA-Z0-9]*:[a-zA-Z0-9]*", key):
                 extension_capabilities[key] = desired_caps[key]
+        cap_str = str(desired_caps).lower()
+        if "browserstack" in cap_str or "bstack" in cap_str:
+            chrome_options.set_capability("bstack:options", desired_caps)
         chrome_options.set_capability("cloud:options", capabilities)
         if selenoid:
             snops = selenoid_options
@@ -1873,6 +1949,9 @@ def get_remote_driver(
                 platform_name = desired_caps[key]
             elif re.match("[a-zA-Z0-9]*:[a-zA-Z0-9]*", key):
                 extension_capabilities[key] = desired_caps[key]
+        cap_str = str(desired_caps).lower()
+        if "browserstack" in cap_str or "bstack" in cap_str:
+            firefox_options.set_capability("bstack:options", desired_caps)
         firefox_options.set_capability("cloud:options", capabilities)
         if selenoid:
             snops = selenoid_options
@@ -1946,6 +2025,7 @@ def get_remote_driver(
             user_data_dir,
             extension_zip,
             extension_dir,
+            disable_features,
             binary_location,
             driver_version,
             page_load_strategy,
@@ -2013,6 +2093,9 @@ def get_remote_driver(
         remote_options = ArgOptions()
         for cap_name, cap_value in desired_caps.items():
             remote_options.set_capability(cap_name, cap_value)
+        cap_str = str(desired_caps).lower()
+        if "browserstack" in cap_str or "bstack" in cap_str:
+            remote_options.set_capability("bstack:options", desired_caps)
         driver = webdriver.Remote(
             command_executor=address,
             options=remote_options,
@@ -2063,6 +2146,7 @@ def get_local_driver(
     user_data_dir,
     extension_zip,
     extension_dir,
+    disable_features,
     binary_location,
     driver_version,
     page_load_strategy,
@@ -2229,14 +2313,16 @@ def get_local_driver(
                 "IE Browser is for Windows-based systems only!"
             )
         from selenium.webdriver.ie.options import Options
+        from selenium.webdriver.ie.service import Service
         ie_options = Options()
+        ie_options.add_argument("--guest")
+        ie_options.attach_to_edge_chrome = True
         ie_options.ignore_protected_mode_settings = True
         ie_options.ignore_zoom_level = True
         ie_options.require_window_focus = False
         ie_options.native_events = True
         ie_options.full_page_screenshot = True
         ie_options.persistent_hover = True
-        ie_capabilities = ie_options.to_capabilities()
         if LOCAL_IEDRIVER and os.path.exists(LOCAL_IEDRIVER):
             try:
                 make_driver_executable_if_not(LOCAL_IEDRIVER)
@@ -2270,24 +2356,31 @@ def get_local_driver(
                 log_d("\nWarning: HeadlessIEDriver not found. Getting it now:")
                 sb_install.main(override="iedriver")
                 sys.argv = sys_args  # Put back the original sys args
+        d_b_c = "--disable-build-check"
+        logger = logging.getLogger("selenium")
+        logger.setLevel("INFO")
         if not headless:
             warnings.simplefilter("ignore", category=DeprecationWarning)
-            driver = webdriver.Ie(capabilities=ie_capabilities)
+            service = Service(service_args=[d_b_c], log_output=os.devnull)
+            driver = webdriver.Ie(service=service, options=ie_options)
             return extend_driver(driver)
         else:
             warnings.simplefilter("ignore", category=DeprecationWarning)
-            driver = webdriver.Ie(
-                executable_path=LOCAL_HEADLESS_IEDRIVER,
-                capabilities=ie_capabilities,
+            service = Service(
+                executable_path=LOCAL_IEDRIVER,
+                service_args=[d_b_c],
+                log_output=os.devnull,
             )
+            driver = webdriver.Ie(service=service, options=ie_options)
             return extend_driver(driver)
     elif browser_name == constants.Browser.EDGE:
         prefs = {
             "download.default_directory": downloads_path,
-            "local_discovery.notifications_enabled": False,
-            "credentials_enable_service": False,
-            "download.prompt_for_download": False,
             "download.directory_upgrade": True,
+            "download.prompt_for_download": False,
+            "credentials_enable_service": False,
+            "local_discovery.notifications_enabled": False,
+            "safebrowsing.disable_download_protection": True,
             "safebrowsing.enabled": False,
             "omnibox-max-zero-suggest-matches": 0,
             "omnibox-use-existing-autocomplete-client": 0,
@@ -2299,11 +2392,10 @@ def get_local_driver(
             "omnibox-zero-suggest-prefetching-on-srp": 0,
             "omnibox-zero-suggest-prefetching-on-web": 0,
             "omnibox-zero-suggest-in-memory-caching": 0,
-            "safebrowsing.disable_download_protection": True,
+            "content_settings.exceptions.automatic_downloads.*.setting": 1,
             "default_content_setting_values.notifications": 0,
             "default_content_settings.popups": 0,
             "managed_default_content_settings.popups": 0,
-            "content_settings.exceptions.automatic_downloads.*.setting": 1,
             "profile.password_manager_enabled": False,
             "profile.default_content_setting_values.notifications": 2,
             "profile.default_content_settings.popups": 0,
@@ -2507,9 +2599,9 @@ def get_local_driver(
             emulator_settings = {}
             device_metrics = {}
             if (
-                type(device_width) is int
-                and type(device_height) is int
-                and type(device_pixel_ratio) is int
+                isinstance(device_width, int)
+                and isinstance(device_height, int)
+                and isinstance(device_pixel_ratio, int)
             ):
                 device_metrics["width"] = device_width
                 device_metrics["height"] = device_height
@@ -2558,18 +2650,6 @@ def get_local_driver(
         edge_options.add_argument(
             "--disable-autofill-keyboard-accessory-view[8]"
         )
-        edge_options.add_argument("--ash-no-nudges")
-        edge_options.add_argument("--deny-permission-prompts")
-        if user_data_dir:
-            edge_options.add_argument(
-                "--disable-features=OptimizationHintsFetching,Translate,"
-                "OptimizationTargetPrediction,PrivacySandboxSettings4"
-            )
-        else:
-            edge_options.add_argument(
-                "--disable-features=OptimizationHintsFetching,Translate,"
-                "OptimizationTargetPrediction"
-            )
         edge_options.add_argument("--disable-browser-side-navigation")
         edge_options.add_argument("--disable-translate")
         if not enable_ws:
@@ -2584,6 +2664,12 @@ def get_local_driver(
         if headless or headless2 or is_using_uc(undetectable, browser_name):
             edge_options.add_argument("--disable-renderer-backgrounding")
         edge_options.add_argument("--disable-backgrounding-occluded-windows")
+        edge_options.add_argument("--disable-client-side-phishing-detection")
+        edge_options.add_argument("--disable-oopr-debug-crash-dump")
+        edge_options.add_argument("--disable-top-sites")
+        edge_options.add_argument("--ash-no-nudges")
+        edge_options.add_argument("--no-crash-upload")
+        edge_options.add_argument("--deny-permission-prompts")
         if (
             page_load_strategy
             and page_load_strategy.lower() in ["eager", "none"]
@@ -2661,10 +2747,14 @@ def get_local_driver(
         if swiftshader:
             edge_options.add_argument("--use-gl=angle")
             edge_options.add_argument("--use-angle=swiftshader-webgl")
-        else:
+        elif (
+            not is_using_uc(undetectable, browser_name)
+            and not enable_3d_apis
+        ):
             edge_options.add_argument("--disable-gpu")
         if IS_LINUX:
             edge_options.add_argument("--disable-dev-shm-usage")
+        extra_disabled_features = []
         set_binary = False
         if chromium_arg:
             # Can be a comma-separated list of Chromium args
@@ -2678,8 +2768,35 @@ def get_local_driver(
                         chromium_arg_item = "--" + chromium_arg_item
                 if "set-binary" in chromium_arg_item:
                     set_binary = True
+                elif "disable-features=" in chromium_arg_item:
+                    d_f = chromium_arg_item.split("disable-features=")[-1]
+                    extra_disabled_features.append(d_f)
                 elif len(chromium_arg_item) >= 3:
                     edge_options.add_argument(chromium_arg_item)
+        if disable_features:
+            extra_disabled_features.extend(disable_features.split(","))
+        included_disabled_features = []
+        if user_data_dir:
+            included_disabled_features.append("OptimizationHintsFetching")
+            included_disabled_features.append("Translate")
+            included_disabled_features.append("OptimizationTargetPrediction")
+            included_disabled_features.append("PrivacySandboxSettings4")
+            included_disabled_features.append("InsecureDownloadWarnings")
+            for item in extra_disabled_features:
+                if item not in included_disabled_features:
+                    included_disabled_features.append(item)
+            d_f_string = ",".join(included_disabled_features)
+            edge_options.add_argument("--disable-features=%s" % d_f_string)
+        else:
+            included_disabled_features.append("OptimizationHintsFetching")
+            included_disabled_features.append("Translate")
+            included_disabled_features.append("OptimizationTargetPrediction")
+            included_disabled_features.append("InsecureDownloadWarnings")
+            for item in extra_disabled_features:
+                if item not in included_disabled_features:
+                    included_disabled_features.append(item)
+            d_f_string = ",".join(included_disabled_features)
+            edge_options.add_argument("--disable-features=%s" % d_f_string)
         if (set_binary or IS_LINUX) and not binary_location:
             br_app = "edge"
             binary_loc = detect_b_ver.get_binary_location(br_app)
@@ -2819,6 +2936,7 @@ def get_local_driver(
                 user_data_dir,
                 extension_zip,
                 extension_dir,
+                disable_features,
                 binary_location,
                 driver_version,
                 page_load_strategy,
@@ -3336,6 +3454,7 @@ def get_local_driver(
                                         None,  # user_data_dir
                                         None,  # extension_zip
                                         None,  # extension_dir
+                                        None,  # disable_features
                                         binary_location,
                                         driver_version,
                                         page_load_strategy,
@@ -3389,7 +3508,21 @@ def get_local_driver(
                                     try:
                                         user_agent = driver.execute_script(
                                             "return navigator.userAgent;"
-                                        ).replace("Headless", "")
+                                        )
+                                        if (
+                                            major_chrome_version
+                                            and full_ch_version
+                                            and full_ch_version.count(".") == 3
+                                            and full_ch_version in user_agent
+                                        ):
+                                            mcv = major_chrome_version
+                                            user_agent = user_agent.replace(
+                                                "Chrome/%s" % full_ch_version,
+                                                "Chrome/%s.0.0.0" % mcv
+                                            )
+                                        user_agent = user_agent.replace(
+                                            "Headless", ""
+                                        )
                                         chrome_options.add_argument(
                                             "--user-agent=%s" % user_agent
                                         )
@@ -3553,6 +3686,7 @@ def get_local_driver(
                         None,  # user_data_dir
                         None,  # extension_zip
                         None,  # extension_dir
+                        None,  # disable_features
                         binary_location,
                         driver_version,
                         page_load_strategy,
@@ -3631,9 +3765,9 @@ def get_local_driver(
                     if mobile_emulator:
                         uc_metrics = {}
                         if (
-                            type(device_width) is int
-                            and type(device_height) is int
-                            and type(device_pixel_ratio) is int
+                            isinstance(device_width, int)
+                            and isinstance(device_height, int)
+                            and isinstance(device_pixel_ratio, int)
                         ):
                             uc_metrics["width"] = device_width
                             uc_metrics["height"] = device_height
@@ -3746,9 +3880,11 @@ def get_local_driver(
                         service=service, options=chrome_options
                     )
                     return extend_driver(driver)
-        except Exception:
+        except Exception as original_exception:
+            if is_using_uc(undetectable, browser_name):
+                raise
+            # Try again if Chrome didn't launch
             try:
-                # Try again if Chrome didn't launch
                 service = ChromeService(service_args=["--disable-build-check"])
                 driver = webdriver.Chrome(
                     service=service, options=chrome_options
@@ -3756,8 +3892,18 @@ def get_local_driver(
                 return extend_driver(driver)
             except Exception:
                 pass
-            if headless:
+            if user_data_dir:
+                print("\nUnable to set user_data_dir while starting Chrome!\n")
                 raise
+            elif mobile_emulator:
+                print("\nFailed to start Chrome's mobile device emulator!\n")
+                raise
+            elif extension_zip or extension_dir:
+                print("\nUnable to load extension while starting Chrome!\n")
+                raise
+            elif headless or headless2 or IS_LINUX or proxy_string or use_wire:
+                raise
+            # Try running without any options (bare bones Chrome launch)
             if LOCAL_CHROMEDRIVER and os.path.exists(LOCAL_CHROMEDRIVER):
                 try:
                     make_driver_executable_if_not(LOCAL_CHROMEDRIVER)
@@ -3770,8 +3916,11 @@ def get_local_driver(
                 log_output=os.devnull,
                 service_args=["--disable-build-check"]
             )
-            driver = webdriver.Chrome(service=service)
-            return extend_driver(driver)
+            try:
+                driver = webdriver.Chrome(service=service)
+                return extend_driver(driver)
+            except Exception:
+                raise original_exception
     else:
         raise Exception(
             "%s is not a valid browser option for this system!" % browser_name

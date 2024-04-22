@@ -213,7 +213,7 @@ def main():
                         first_paren = line.find("(")
                         line1 = line[:first_paren + 1]
                         line2 = new_ws + line[first_paren + 1:]
-                        if not ("):") in line2:
+                        if ("):") not in line2:
                             new_sb_lines.append(line1)
                             if get_width(line2) + w > console_width:
                                 if line2.count('", "') == 1:
@@ -353,7 +353,7 @@ def main():
                         new_ws = line[0:whitespace] + "    "
                         line1 = line.split('("')[0] + "("
                         line2 = new_ws + '"' + line.split('("')[1]
-                        if not ("):") in line2:
+                        if ("):") not in line2:
                             new_sb_lines.append(line1)
                             if get_width(line2) + w > console_width:
                                 if line2.count('" in self.') == 1:
@@ -382,7 +382,7 @@ def main():
                         new_ws = line[0:whitespace] + "    "
                         line1 = line.split("('")[0] + "("
                         line2 = new_ws + "'" + line.split("('")[1]
-                        if not ("):") in line2:
+                        if ("):") not in line2:
                             new_sb_lines.append(line1)
                             if get_width(line2) + w > console_width:
                                 if line2.count("' in self.") == 1:
@@ -444,7 +444,7 @@ def main():
                                 continue
                         new_sb_lines.append(line2)
                         continue
-                    if line.count("(self.") == 1 and not ("):") in line:
+                    if line.count("(self.") == 1 and ("):") not in line:
                         whitespace = line_length2 - len(line.lstrip())
                         new_ws = line[0:whitespace] + "    "
                         line1 = line.split("(self.")[0] + "("
@@ -500,7 +500,7 @@ def main():
                             else:
                                 new_sb_lines.append(line2)
                             continue
-                    if line.count(" % ") == 1 and not ("):") in line:
+                    if line.count(" % ") == 1 and ("):") not in line:
                         whitespace = line_length2 - len(line.lstrip())
                         new_ws = line[0:whitespace] + "    "
                         line1 = line.split(" % ")[0] + " \\"
@@ -509,7 +509,7 @@ def main():
                             new_sb_lines.append(line1)
                             new_sb_lines.append(line2)
                             continue
-                    if line.count(" = ") == 1 and not ("  # ") in line:
+                    if line.count(" = ") == 1 and ("  # ") not in line:
                         whitespace = line_length2 - len(line.lstrip())
                         new_ws = line[0:whitespace] + "    "
                         line1 = line.split(" = ")[0] + " = ("
@@ -609,6 +609,7 @@ def main():
                 all_code = all_code.replace("</b>", "**")
         if "<code>`" not in all_code and "`<code>" not in all_code:
             if "</code>`" not in all_code and "`</code>" not in all_code:
+                all_code = all_code.replace('<code translate="no">', "``")
                 all_code = all_code.replace("<code>", "``")
                 all_code = all_code.replace("</code>", "``")
         # Display ALL <h> tags as an <h1> because the font size is fixed

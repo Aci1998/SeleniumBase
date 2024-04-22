@@ -336,6 +336,16 @@ self.delete_all_cookies()
 
 self.delete_saved_cookies(name="cookies.txt")
 
+self.get_saved_cookies(name="cookies.txt")
+
+self.get_cookie(name)
+
+self.get_cookies()
+
+self.add_cookie(cookie_dict)
+
+self.add_cookies(cookies)
+
 self.wait_for_ready_state_complete(timeout=None)
 
 self.wait_for_angularjs(timeout=None)
@@ -369,6 +379,8 @@ self.highlight_type(selector, text, by="css selector", loops=3, scroll=True, tim
 # Duplicates:
 # self.highlight_update_text(
 #     selector, text, by="css selector", loops=3, scroll=True, timeout=None)
+
+self.highlight_if_visible(selector, by="css selector", loops=4, scroll=True)
 
 self.highlight(selector, by="css selector", loops=4, scroll=True, timeout=None)
 
@@ -594,6 +606,7 @@ self.get_local_storage_item(key)
 self.remove_local_storage_item(key)
 
 self.clear_local_storage()
+# Duplicates: delete_local_storage()
 
 self.get_local_storage_keys()
 
@@ -606,6 +619,7 @@ self.get_session_storage_item(key)
 self.remove_session_storage_item(key)
 
 self.clear_session_storage()
+# Duplicates: delete_session_storage()
 
 self.get_session_storage_keys()
 
@@ -742,6 +756,7 @@ self.generate_traffic_chain(pages, loops=1)
 
 self.get_element(selector, by="css selector", timeout=None)
 # Duplicates:
+# self.wait_for_selector(selector, by="css selector", timeout=None)
 # self.locator(selector, by="css selector", timeout=None)
 # self.wait_for_element_present(selector, by="css selector", timeout=None)
 
@@ -957,6 +972,12 @@ driver.assert_exact_text(text, selector)
 
 driver.wait_for_element(selector)
 
+driver.wait_for_element_visible(selector)
+
+driver.wait_for_element_present(selector)
+
+driver.wait_for_selector(selector)
+
 driver.wait_for_text(text, selector)
 
 driver.wait_for_exact_text(text, selector)
@@ -991,6 +1012,8 @@ driver.highlight(selector)
 
 driver.highlight_click(selector)
 
+driver.highlight_if_visible(selector)
+
 driver.sleep(seconds)
 
 driver.locator(selector)
@@ -1015,11 +1038,15 @@ driver.uc_open_with_reconnect(url, reconnect_time=None)
 
 driver.reconnect(timeout)
 
+driver.disconnect()
+
+driver.connect()
+
 driver.uc_click(
     selector, by="css selector",
     timeout=settings.SMALL_TIMEOUT, reconnect_time=None)
 
-driver.uc_switch_to_frame(frame)
+driver.uc_switch_to_frame(frame, reconnect_time=None)
 ```
 
 --------

@@ -97,7 +97,7 @@ def linux_browser_apps_to_cmd(*apps):
 
 
 def chrome_on_linux_path(prefer_chromium=False):
-    if os_name() != "linux":
+    if os_name() != OSType.LINUX:
         return ""
     if prefer_chromium:
         paths = ["/bin/chromium", "/bin/chromium-browser"]
@@ -127,7 +127,7 @@ def chrome_on_linux_path(prefer_chromium=False):
 
 
 def edge_on_linux_path():
-    if os_name() != "linux":
+    if os_name() != OSType.LINUX:
         return ""
     paths = os.environ["PATH"].split(os.pathsep)
     binaries = []
@@ -144,7 +144,7 @@ def edge_on_linux_path():
 
 
 def chrome_on_windows_path():
-    if os_name() != "win32":
+    if os_name() != OSType.WIN:
         return ""
     candidates = []
     for item in map(
@@ -172,7 +172,7 @@ def chrome_on_windows_path():
 
 
 def edge_on_windows_path():
-    if os_name() != "win32":
+    if os_name() != OSType.WIN:
         return ""
     candidates = []
     for item in map(
@@ -231,16 +231,28 @@ def get_binary_location(browser_type, prefer_chromium=False):
 
 def get_browser_version_from_binary(binary_location):
     try:
+        if not os.path.exists(binary_location):
+            return None
+        path = binary_location
+        pattern = r"\d+\.\d+\.\d+"
+        quad_pattern = r"\d+\.\d+\.\d+\.\d+"
+        if os_name() == OSType.WIN:
+            path = path.replace(r"\ ", r" ").replace("\\", "\\\\")
+            cmd_mapping = (
+                '''powershell -command "&{(Get-Item -Path '%s')'''
+                '''.VersionInfo.FileVersion}"''' % path
+            )
+            quad_version = read_version_from_cmd(cmd_mapping, quad_pattern)
+            if quad_version and len(str(quad_version)) >= 9:  # Eg. 122.0.0.0
+                return quad_version
+            return read_version_from_cmd(cmd_mapping, pattern)
         if binary_location.count(r"\ ") != binary_location.count(" "):
             binary_location = binary_location.replace(" ", r"\ ")
         cmd_mapping = binary_location + " --version"
-        pattern = r"\d+\.\d+\.\d+"
-        quad_pattern = r"\d+\.\d+\.\d+\.\d+"
         quad_version = read_version_from_cmd(cmd_mapping, quad_pattern)
-        if quad_version and len(str(quad_version)) >= 9:  # Eg. 115.0.0.0
+        if quad_version and len(str(quad_version)) >= 9:
             return quad_version
-        version = read_version_from_cmd(cmd_mapping, pattern)
-        return version
+        return read_version_from_cmd(cmd_mapping, pattern)
     except Exception:
         return None
 

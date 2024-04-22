@@ -72,6 +72,7 @@ def SB(
     user_data_dir=None,  # Set the Chrome user data directory to use.
     extension_zip=None,  # Load a Chrome Extension .zip|.crx, comma-separated.
     extension_dir=None,  # Load a Chrome Extension directory, comma-separated.
+    disable_features=None,  # "F1,F2" (Disable Chrome features, ","-separated.)
     binary_location=None,  # Set path of the Chromium browser binary to use.
     driver_version=None,  # Set the chromedriver or uc_driver version to use.
     skip_js_waits=None,  # Skip JS Waits (readyState=="complete" and Angular).
@@ -135,6 +136,8 @@ def SB(
     arg_join = " ".join(sys_argv)
     archive_logs = False
     existing_runner = False
+    collect_only = ("--co" in sys_argv or "--collect-only" in sys_argv)
+    all_scripts = (hasattr(sb_config, "all_scripts") and sb_config.all_scripts)
     do_log_folder_setup = False  # The first "test=True" run does it
     if (
         (hasattr(sb_config, "is_behave") and sb_config.is_behave)
@@ -145,21 +148,21 @@ def SB(
         test = False  # Already using a test runner. Skip extra test steps.
     elif test is None and "--test" in sys_argv:
         test = True
-    if (
-        existing_runner
-        and not hasattr(sb_config, "_context_of_runner")
-    ):
-        sb_config._context_of_runner = True
+    if existing_runner and not hasattr(sb_config, "_context_of_runner"):
         if hasattr(sb_config, "is_pytest") and sb_config.is_pytest:
-            print(
-                "\n  SB Manager script was triggered by pytest collection!"
-                '\n  (Prevent that by using: `if __name__ == "__main__":`)'
-            )
+            import pytest
+            msg = "Skipping `SB()` script. (Use `python`, not `pytest`)"
+            if not collect_only and not all_scripts:
+                print("\n  *** %s" % msg)
+            if collect_only or not all_scripts:
+                pytest.skip(allow_module_level=True)
         elif hasattr(sb_config, "is_nosetest") and sb_config.is_nosetest:
             raise Exception(
                 "\n  SB Manager script was triggered by nosetest collection!"
                 '\n  (Prevent that by using: ``if __name__ == "__main__":``)'
             )
+    elif existing_runner:
+        sb_config._context_of_runner = True
     if (
         not existing_runner
         and not hasattr(sb_config, "_has_older_context")
@@ -325,6 +328,30 @@ def SB(
                 proxy_string = proxy_string[1:-1]
             elif proxy_string.startswith("'") and proxy_string.endswith("'"):
                 proxy_string = proxy_string[1:-1]
+    c_a = chromium_arg
+    if c_a is None and "--chromium-arg" in arg_join:
+        if "--chromium-arg=" in arg_join:
+            c_a = arg_join.split("--chromium-arg=")[1].split(" ")[0]
+        elif "--chromium-arg " in arg_join:
+            c_a = arg_join.split("--chromium-arg ")[1].split(" ")[0]
+        if c_a:
+            if c_a.startswith('"') and c_a.endswith('"'):
+                c_a = c_a[1:-1]
+            elif c_a.startswith("'") and c_a.endswith("'"):
+                c_a = c_a[1:-1]
+    chromium_arg = c_a
+    d_f = disable_features
+    if d_f is None and "--disable-features" in arg_join:
+        if "--disable-features=" in arg_join:
+            d_f = arg_join.split("--disable-features=")[1].split(" ")[0]
+        elif "--disable-features " in arg_join:
+            d_f = arg_join.split("--disable-features ")[1].split(" ")[0]
+        if d_f:
+            if d_f.startswith('"') and d_f.endswith('"'):
+                d_f = d_f[1:-1]
+            elif c_a.startswith("'") and d_f.endswith("'"):
+                d_f = d_f[1:-1]
+    disable_features = d_f
     user_agent = agent
     recorder_mode = False
     if recorder_ext:
@@ -384,7 +411,7 @@ def SB(
     sb_config.proxy_driver = False
     if "--proxy-driver" in sys_argv or "--proxy_driver" in sys_argv:
         sb_config.proxy_driver = True
-    if variables and type(variables) is str and len(variables) > 0:
+    if variables and isinstance(variables, str) and len(variables) > 0:
         import ast
         bad_input = False
         if (
@@ -395,7 +422,7 @@ def SB(
         else:
             try:
                 variables = ast.literal_eval(variables)
-                if not type(variables) is dict:
+                if not isinstance(variables, dict):
                     bad_input = True
             except Exception:
                 bad_input = True
@@ -731,6 +758,7 @@ def SB(
     sb_config.chromium_arg = chromium_arg
     sb_config.firefox_arg = firefox_arg
     sb_config.firefox_pref = firefox_pref
+    sb_config.disable_features = disable_features
     sb_config.proxy_string = proxy_string
     sb_config.proxy_bypass_list = proxy_bypass_list
     sb_config.proxy_pac_url = proxy_pac_url
@@ -833,6 +861,7 @@ def SB(
     sb.chromium_arg = sb_config.chromium_arg
     sb.firefox_arg = sb_config.firefox_arg
     sb.firefox_pref = sb_config.firefox_pref
+    sb.disable_features = sb_config.disable_features
     sb.proxy_string = sb_config.proxy_string
     sb.proxy_bypass_list = sb_config.proxy_bypass_list
     sb.proxy_pac_url = sb_config.proxy_pac_url
@@ -932,8 +961,6 @@ def SB(
         sb_config = sb_config_backup
         if test:
             sb_config._has_older_context = True
-        if existing_runner:
-            sb_config._context_of_runner = True
         if test_name:
             result = "passed"
             if test and not test_passed:

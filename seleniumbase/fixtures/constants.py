@@ -197,7 +197,7 @@ class Warnings:
 
 
 class JQuery:
-    VER = "3.6.3"
+    VER = "3.7.1"
     MIN_JS = "https://cdn.jsdelivr.net/npm/jquery@%s/dist/jquery.min.js" % VER
 
 
@@ -218,14 +218,14 @@ class Messenger:
 
 
 class Underscore:
-    VER = "1.13.4"
+    VER = "1.13.6"
     MIN_JS = (
         "https://cdn.jsdelivr.net/npm/underscore@%s/underscore.min.js" % VER
     )
 
 
 class Backbone:
-    VER = "1.4.1"
+    VER = "1.6.0"
     MIN_JS = "https://cdn.jsdelivr.net/npm/backbone@%s/backbone.min.js" % VER
 
 
@@ -263,7 +263,7 @@ class Reveal:
 
 
 class HighCharts:
-    VER = "9.0.1"  # Later versions have a bug that removes default colors
+    VER = "10.3.3"
     HC_CSS = "https://code.highcharts.com/%s/css/highcharts.css" % VER
     HC_JS = "https://code.highcharts.com/%s/highcharts.js" % VER
     EXPORTING_JS = "https://code.highcharts.com/%s/modules/exporting.js" % VER
@@ -343,6 +343,11 @@ class Tether:
     )
 
 
+class ProxyPy:
+    # The version installed if proxy.py is not installed
+    VER = "2.4.3"
+
+
 class SeleniumWire:
     # The version installed if selenium-wire is not installed
     VER = "5.1.0"
@@ -362,7 +367,7 @@ class Mobile:
 
 
 class UC:
-    RECONNECT_TIME = 2.28  # Seconds
+    RECONNECT_TIME = 2.4  # Seconds
 
 
 class ValidBrowsers:
@@ -388,6 +393,7 @@ class ValidBinaries:
         "google-chrome-unstable",
         "brave-browser",
         "brave-browser-stable",
+        "brave",
         "opera",
         "opera-stable",
         "chrome.exe",  # WSL (Windows Subsystem for Linux)
@@ -403,6 +409,8 @@ class ValidBinaries:
         "Google Chrome",
         "Chromium",
         "Google Chrome for Testing",
+        "Google Chrome Beta",
+        "Google Chrome Dev",
         "Brave Browser",
         "Opera",
     ]

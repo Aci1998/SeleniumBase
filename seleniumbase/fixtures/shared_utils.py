@@ -49,6 +49,10 @@ def is_windows():
     return "win32" in sys.platform
 
 
+def is_safari(driver):
+    return driver.capabilities["browserName"].lower() == "safari"
+
+
 def get_terminal_width():
     width = 80  # default
     try:
@@ -120,7 +124,7 @@ def format_exc(exception, message):
         exc = exceptions.NoSuchOptionException
     elif exception == "NoSuchOptionException":
         exc = exceptions.NoSuchOptionException
-    elif type(exception) is str:
+    elif isinstance(exception, str):
         exc = Exception
         message = "%s: %s" % (exception, message)
         return exc, message

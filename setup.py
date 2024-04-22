@@ -34,7 +34,7 @@ if sys.argv[-1] == "publish":
             print("\nERROR! Publishing to PyPI requires Python>=3.9")
             sys.exit()
         print("\n*** Checking code health with flake8:\n")
-        os.system("python -m pip install 'flake8==6.1.0'")
+        os.system("python -m pip install 'flake8==7.0.0'")
         flake8_status = os.system("flake8 --exclude=recordings,temp")
         if flake8_status != 0:
             print("\nERROR! Fix flake8 issues before publishing to PyPI!\n")
@@ -92,7 +92,19 @@ setup(
     author_email="mdmintz@gmail.com",
     maintainer="Michael Mintz",
     license="MIT",
-    keywords="pytest automation selenium browser testing webdriver sbase",
+    keywords=[
+        "pytest",
+        "selenium",
+        "framework",
+        "automation",
+        "browser",
+        "testing",
+        "webdriver",
+        "seleniumbase",
+        "sbase",
+        "crawling",
+        "scraping",
+    ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
@@ -114,6 +126,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Internet",
         "Topic :: Internet :: WWW/HTTP :: Browsers",
         "Topic :: Scientific/Engineering",
@@ -124,6 +137,8 @@ setup(
         "Topic :: Software Development :: Quality Assurance",
         "Topic :: Software Development :: Code Generators",
         "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Application Frameworks",
+        "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Software Development :: Testing",
         "Topic :: Software Development :: Testing :: Acceptance",
         "Topic :: Software Development :: Testing :: Traffic Generation",
@@ -131,56 +146,63 @@ setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        'pip>=23.3.2',
-        'packaging>=23.2',
+        'pip>=24.0',
+        'packaging>=24.0',
         'setuptools>=68.0.0;python_version<"3.8"',
-        'setuptools>=69.0.2;python_version>="3.8"',
-        'wheel>=0.42.0',
-        'attrs>=23.1.0',
-        "certifi>=2023.11.17",
+        'setuptools>=69.5.1;python_version>="3.8"',
+        'wheel>=0.42.0;python_version<"3.8"',
+        'wheel>=0.43.0;python_version>="3.8"',
+        'attrs>=23.2.0',
+        "certifi>=2024.2.2",
         'filelock>=3.12.2;python_version<"3.8"',
-        'filelock>=3.13.1;python_version>="3.8"',
+        'filelock>=3.13.4;python_version>="3.8"',
         'platformdirs>=4.0.0;python_version<"3.8"',
-        'platformdirs>=4.1.0;python_version>="3.8"',
-        'parse>=1.20.0',
+        'platformdirs>=4.2.0;python_version>="3.8"',
+        'typing-extensions>=4.11.0;python_version>="3.8"',
+        'parse>=1.20.1',
         'parse-type>=0.6.2',
+        'pyyaml>=6.0.1',
         "six==1.16.0",
-        "idna==3.6",
+        "idna==3.7",
         'chardet==5.2.0',
         'charset-normalizer==3.3.2',
         'urllib3>=1.26.18,<2;python_version<"3.10"',
-        'urllib3>=1.26.18,<2.2.0;python_version>="3.10"',
+        'urllib3>=1.26.18,<2.3.0;python_version>="3.10"',
         'requests==2.31.0',
-        "pynose==1.4.8",
-        'sniffio==1.3.0',
+        "pynose==1.5.1",
+        'sniffio==1.3.1',
         'h11==0.14.0',
         'outcome==1.3.0.post0',
         'trio==0.22.2;python_version<"3.8"',
-        'trio==0.23.2;python_version>="3.8"',
+        'trio==0.25.0;python_version>="3.8"',
         'trio-websocket==0.11.1',
         'wsproto==1.2.0',
         'selenium==4.11.2;python_version<"3.8"',
-        'selenium==4.16.0;python_version>="3.8"',
+        'selenium==4.19.0;python_version>="3.8"',
         'cssselect==1.2.0',
         "sortedcontainers==2.4.0",
         'fasteners==0.19',
-        'execnet==2.0.2',
+        'execnet==2.0.2;python_version<"3.8"',
+        'execnet==2.1.1;python_version>="3.8"',
         'iniconfig==2.0.0',
         'pluggy==1.2.0;python_version<"3.8"',
-        'pluggy==1.3.0;python_version>="3.8"',
+        'pluggy==1.4.0;python_version>="3.8"',
         "py==1.11.0",
-        'pytest==7.4.3',
+        'pytest==7.4.4;python_version<"3.8"',
+        'pytest==8.1.1;python_version>="3.8"',
         "pytest-html==2.0.1",  # Newer ones had issues
-        'pytest-metadata==3.0.0',
+        'pytest-metadata==3.0.0;python_version<"3.8"',
+        'pytest-metadata==3.1.1;python_version>="3.8"',
         "pytest-ordering==0.6",
-        'pytest-rerunfailures==13.0',
+        'pytest-rerunfailures==13.0;python_version<"3.8"',
+        'pytest-rerunfailures==14.0;python_version>="3.8"',
         'pytest-xdist==3.5.0',
         'parameterized==0.9.0',
         "sbvirtualdisplay==1.3.0",
         "behave==1.2.6",
         'soupsieve==2.4.1;python_version<"3.8"',
         'soupsieve==2.5;python_version>="3.8"',
-        "beautifulsoup4==4.12.2",
+        "beautifulsoup4==4.12.3",
         'pygments==2.17.2',
         'pyreadline3==3.4.1;platform_system=="Windows"',
         "tabcompleter==1.3.0",
@@ -191,32 +213,33 @@ setup(
         'markdown-it-py==2.2.0;python_version<"3.8"',
         'markdown-it-py==3.0.0;python_version>="3.8"',
         'mdurl==0.1.2',
-        'rich==13.7.0',
+        'rich==13.7.1',
     ],
     extras_require={
         # pip install -e .[allure]
         # Usage: pytest --alluredir=allure_results
         # Serve: allure serve allure_results
         "allure": [
-            'allure-pytest==2.13.2',
-            'allure-python-commons==2.13.2',
-            'allure-behave==2.13.2',
+            'allure-pytest>=2.13.5',
+            'allure-python-commons>=2.13.5',
+            'allure-behave>=2.13.5',
         ],
         # pip install -e .[coverage]
         # Usage: coverage run -m pytest; coverage html; coverage report
         "coverage": [
             'coverage==7.2.7;python_version<"3.8"',
-            'coverage==7.3.3;python_version>="3.8"',
-            'pytest-cov==4.1.0',
+            'coverage>=7.4.4;python_version>="3.8"',
+            'pytest-cov==4.1.0;python_version<"3.8"',
+            'pytest-cov>=5.0.0;python_version>="3.8"',
         ],
         # pip install -e .[flake8]
         # Usage: flake8
         "flake8": [
             'flake8==5.0.4;python_version<"3.9"',
-            'flake8==6.1.0;python_version>="3.9"',
+            'flake8==7.0.0;python_version>="3.9"',
             "mccabe==0.7.0",
             'pyflakes==2.5.0;python_version<"3.9"',
-            'pyflakes==3.1.0;python_version>="3.9"',
+            'pyflakes==3.2.0;python_version>="3.9"',
             'pycodestyle==2.9.1;python_version<"3.9"',
             'pycodestyle==2.11.1;python_version>="3.9"',
         ],
@@ -229,23 +252,39 @@ setup(
         # pip install -e .[pdfminer]
         # (An optional library for parsing PDF files.)
         "pdfminer": [
-            'pdfminer.six==20221105',
+            'pdfminer.six==20221105;python_version<"3.8"',
+            'pdfminer.six==20231228;python_version>="3.8"',
             'cryptography==39.0.2;python_version<"3.9"',
-            'cryptography==41.0.7;python_version>="3.9"',
+            'cryptography==42.0.5;python_version>="3.9"',
             'cffi==1.15.1;python_version<"3.8"',
             'cffi==1.16.0;python_version>="3.8"',
-            "pycparser==2.21",
-
+            "pycparser==2.22",
         ],
         # pip install -e .[pillow]
         # (An optional library for image-processing.)
         "pillow": [
             'Pillow==9.5.0;python_version<"3.8"',
-            'Pillow==10.1.0;python_version>="3.8"',
+            'Pillow>=10.3.0;python_version>="3.8"',
+        ],
+        # pip install -e .[pip-system-certs]
+        # (If you see [SSL: CERTIFICATE_VERIFY_FAILED], then get this.)
+        # (May help those with corporate self-signed certs on Windows.)
+        "pip-system-certs": [
+            'pip-system-certs==4.0;platform_system=="Windows"',
+        ],
+        # pip install -e .[proxy]
+        # Usage: proxy
+        # (That starts a proxy server on "127.0.0.1:8899".)
+        "proxy": [
+            "proxy.py==2.4.3",
         ],
         # pip install -e .[psutil]
         "psutil": [
-            "psutil==5.9.6",
+            "psutil==5.9.8",
+        ],
+        # pip install -e .[selenium-stealth]
+        "selenium-stealth": [
+            'selenium-stealth==1.0.6',
         ],
         # pip install -e .[selenium-wire]
         "selenium-wire": [

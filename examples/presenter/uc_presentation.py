@@ -28,20 +28,16 @@ class UCPresentationClass(BaseCase):
         self.begin_presentation(filename="uc_presentation.html")
 
         self.get_new_driver(undetectable=True)
+        url = "https://gitlab.com/users/sign_in"
         try:
-            self.driver.uc_open_with_reconnect(
-                "https://nowsecure.nl/#relax", reconnect_time=3
-            )
+            self.driver.uc_open_with_reconnect(url, reconnect_time=3)
             try:
-                self.assert_text("OH YEAH, you passed!", "h1", timeout=4)
-                self.post_message("Selenium wasn't detected!", duration=4)
+                self.assert_text("Username", '[for="user_login"]', timeout=3)
+                self.post_message("SeleniumBase wasn't detected", duration=4)
             except Exception:
-                self.clear_all_cookies()
-                self.driver.uc_open_with_reconnect(
-                    "https://nowsecure.nl/#relax", reconnect_time=3
-                )
-                self.assert_text("OH YEAH, you passed!", "h1", timeout=4)
-                self.post_message("Selenium wasn't detected!", duration=4)
+                self.driver.uc_open_with_reconnect(url, reconnect_time=4)
+                self.assert_text("Username", '[for="user_login"]', timeout=3)
+                self.post_message("SeleniumBase wasn't detected", duration=4)
         finally:
             self.quit_extra_driver()
 

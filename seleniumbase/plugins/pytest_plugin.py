@@ -55,6 +55,7 @@ def pytest_addoption(parser):
     --firefox-pref=SET  (Set a Firefox preference:value set, comma-separated.)
     --extension-zip=ZIP  (Load a Chrome Extension .zip|.crx, comma-separated.)
     --extension-dir=DIR  (Load a Chrome Extension directory, comma-separated.)
+    --disable-features="F1,F2" (Disable features, comma-separated, no spaces.)
     --binary-location=PATH  (Set path of the Chromium browser binary to use.)
     --driver-version=VER  (Set the chromedriver or uc_driver version to use.)
     --sjw  (Skip JS Waits for readyState to be "complete" or Angular to load.)
@@ -199,6 +200,8 @@ def pytest_addoption(parser):
             constants.Environment.DEVELOP,
             constants.Environment.PRODUCTION,
             constants.Environment.PERFORMANCE,
+            constants.Environment.REPLICA,
+            constants.Environment.FEDRAMP,
             constants.Environment.OFFLINE,
             constants.Environment.ONLINE,
             constants.Environment.MASTER,
@@ -208,6 +211,7 @@ def pytest_addoption(parser):
             constants.Environment.ALPHA,
             constants.Environment.BETA,
             constants.Environment.DEMO,
+            constants.Environment.GDPR,
             constants.Environment.MAIN,
             constants.Environment.TEST,
             constants.Environment.GOV,
@@ -625,6 +629,16 @@ def pytest_addoption(parser):
                 Default: None.""",
     )
     parser.addoption(
+        "--disable_features",
+        "--disable-features",
+        action="store",
+        dest="disable_features",
+        default=None,
+        help="""Disable Chromium features from Chrome/Edge browsers.
+                Format: A comma-separated list of Chromium features.
+                Default: None.""",
+    )
+    parser.addoption(
         "--binary_location",
         "--binary-location",
         action="store",
@@ -744,6 +758,16 @@ def pytest_addoption(parser):
         default=True,
         help="""This is used by the BaseCase class to tell apart
                 pytest runs from nosetest runs. (Automatic)""",
+    )
+    parser.addoption(
+        "--all-scripts",
+        "--all_scripts",
+        action="store_true",
+        dest="all_scripts",
+        default=False,
+        help="""Use this to run `SB()`, `DriverContext()` and
+                `Driver()` scripts that are discovered during
+                the pytest collection phase.""",
     )
     parser.addoption(
         "--time_limit",
@@ -1477,6 +1501,7 @@ def pytest_configure(config):
     sb_config.firefox_pref = config.getoption("firefox_pref")
     sb_config.extension_zip = config.getoption("extension_zip")
     sb_config.extension_dir = config.getoption("extension_dir")
+    sb_config.disable_features = config.getoption("disable_features")
     sb_config.binary_location = config.getoption("binary_location")
     sb_config.driver_version = config.getoption("driver_version")
     sb_config.page_load_strategy = config.getoption("page_load_strategy")
@@ -1510,6 +1535,7 @@ def pytest_configure(config):
         settings.ARCHIVE_EXISTING_DOWNLOADS = True
     if config.getoption("skip_js_waits"):
         settings.SKIP_JS_WAITS = True
+    sb_config.all_scripts = config.getoption("all_scripts")
     sb_config._time_limit = config.getoption("time_limit")
     sb_config.time_limit = config.getoption("time_limit")
     sb_config.slow_mode = config.getoption("slow_mode")

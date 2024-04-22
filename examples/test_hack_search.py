@@ -10,8 +10,8 @@ class HackingTests(BaseCase):
     def test_hack_search(self):
         if self.headless:
             self.open_if_not_url("about:blank")
-            print("\n  This test is not for Headless Mode.")
-            self.skip('Do not use "--headless" with this test.')
+            print("\n  Skipping test in headless mode.")
+            self.skip('Skipping test in headless mode.')
         self.open("https://google.com/ncr")
         self.hide_elements("iframe")
         self.assert_element('[title="Search"]')
@@ -24,8 +24,8 @@ class HackingTests(BaseCase):
         self.highlight("h1.b_logo", loops=8)
         self.highlight_click('[href*="github.com/seleniumbase/SeleniumBase"]')
         self.highlight_click('[href="/seleniumbase/SeleniumBase"]')
-        self.highlight_click('a[title="examples"]')
-        self.assert_text("examples", "#file-name-id-wide")
+        self.assert_text("SeleniumBase", "strong a")
+        self.js_click('a[title="examples"]')
         self.highlight('td[class*="large"] a[title="test_hack_search.py"]')
         self.click('td[class*="large"] a[title="test_hack_search.py"]')
         self.assert_text("test_hack_search.py", "#file-name-id-wide")

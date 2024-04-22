@@ -158,6 +158,8 @@ var getBestSelector = function(el) {
     non_id_attributes.push('href');
     non_id_attributes.push('label');
     non_id_attributes.push('data-content');
+    non_id_attributes.push('data-tip');
+    non_id_attributes.push('data-for');
     non_id_attributes.push('class');
     non_id_attributes.push('for');
     non_id_attributes.push('placeholder');
@@ -179,9 +181,8 @@ var getBestSelector = function(el) {
         if (!selector_by_attr[i].includes(' > ') &&
             ((num_by_attr[i] == 1) || (el == all_by_attr[i][0])))
         {
-            if (n_i_attr == 'aria-label' || n_i_attr == 'for')
-                if (hasDigit(selector_by_attr[i]))
-                    continue;
+            if (n_i_attr.startsWith('aria') || n_i_attr == 'for')
+                if (hasDigit(selector_by_attr[i])) continue;
             return selector_by_attr[i];
         }
         child_count_by_attr[i] = ssOccurrences(selector_by_attr[i], ' > ');

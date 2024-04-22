@@ -226,6 +226,7 @@ def get_configured_sb(context):
     sb.chromium_arg = None
     sb.firefox_arg = None
     sb.firefox_pref = None
+    sb.disable_features = None
     sb.proxy_string = None
     sb.proxy_bypass_list = None
     sb.proxy_pac_url = None
@@ -366,7 +367,7 @@ def get_configured_sb(context):
         # Handle: -D variables="{'KEY':'VALUE','KEY2':'VALUE2'}"
         if low_key == "variables":
             variables = userdata[key]
-            if variables and type(variables) is str and len(variables) > 0:
+            if variables and isinstance(variables, str) and len(variables) > 0:
                 bad_input = False
                 if (
                     not variables.startswith("{")
@@ -376,7 +377,7 @@ def get_configured_sb(context):
                 else:
                     try:
                         variables = ast.literal_eval(variables)
-                        if not type(variables) is dict:
+                        if not isinstance(variables, dict):
                             bad_input = True
                     except Exception:
                         bad_input = True
@@ -747,6 +748,13 @@ def get_configured_sb(context):
             if firefox_pref == "true":
                 firefox_pref = sb.firefox_pref  # revert to default
             sb.firefox_pref = firefox_pref
+            continue
+        # Handle: -D disable-features="F1,F2" / disable_features="F1,F2"
+        if low_key in ["disable-features", "disable_features"]:
+            disable_features = userdata[key]
+            if disable_features == "true":
+                disable_features = sb.disable_features  # revert to default
+            sb.disable_features = disable_features
             continue
         # Handle: -D proxy=SERVER:PORT / proxy=USERNAME:PASSWORD@SERVER:PORT
         if low_key in ["proxy", "proxy-server", "proxy-string"]:

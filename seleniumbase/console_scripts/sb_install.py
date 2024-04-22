@@ -50,7 +50,7 @@ IS_WINDOWS = shared_utils.is_windows()
 DRIVER_DIR = os.path.dirname(os.path.realpath(drivers.__file__))
 LOCAL_PATH = "/usr/local/bin/"  # On Mac and Linux systems
 DEFAULT_CHROMEDRIVER_VERSION = "114.0.5735.90"  # (If can't find LATEST_STABLE)
-DEFAULT_GECKODRIVER_VERSION = "v0.33.0"
+DEFAULT_GECKODRIVER_VERSION = "v0.34.0"
 DEFAULT_EDGEDRIVER_VERSION = "115.0.1901.183"  # (If can't find LATEST_STABLE)
 
 
@@ -495,7 +495,7 @@ def main(override=None, intel_for_uc=None, force_uc=None):
                     file_name = "chromedriver-win32.zip"
             plat_arch = file_name.split(".zip")[0]
             download_url = (
-                "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/"
+                "https://storage.googleapis.com/chrome-for-testing-public/"
                 "%s/%s/%s" % (use_version, platform_code, file_name)
             )
         url_request = None
@@ -710,8 +710,7 @@ def main(override=None, intel_for_uc=None, force_uc=None):
         p_version = c3 + use_version + cr
         log_d("\n*** %s = %s" % (msg, p_version))
     elif name == "iedriver":
-        major_version = "3.14"
-        full_version = "3.14.0"
+        full_version = "4.14.0"
         use_version = full_version
         if IS_WINDOWS and "64" in ARCH:
             file_name = "IEDriverServer_x64_%s.zip" % full_version
@@ -723,8 +722,9 @@ def main(override=None, intel_for_uc=None, force_uc=None):
                 "Windows-based systems!"
             )
         download_url = (
-            "https://selenium-release.storage.googleapis.com/"
-            "%s/%s" % (major_version, file_name)
+            "https://github.com/SeleniumHQ/selenium/"
+            "releases/download/selenium-"
+            "%s/%s" % (full_version, file_name)
         )
         headless_ie_version = "v1.4"
         headless_ie_file_name = "headless-selenium-for-win-v1-4.zip"
@@ -949,7 +949,11 @@ def main(override=None, intel_for_uc=None, force_uc=None):
                     make_executable(path_file)
                     log_d("Also copied to: %s%s%s" % (c3, path_file, cr))
             log_d("")
-        elif name == "edgedriver" or name == "msedgedriver":
+        elif (
+            name == "edgedriver"
+            or name == "msedgedriver"
+            or name == "iedriver"
+        ):
             if IS_MAC or IS_LINUX:
                 # Mac / Linux
                 expected_contents = [
@@ -969,6 +973,8 @@ def main(override=None, intel_for_uc=None, force_uc=None):
                     "Driver_Notes/LICENSE",
                     "msedgedriver.exe",
                 ]
+            if name == "iedriver":
+                expected_contents = ["IEDriverServer.exe"]
             if len(contents) > 5:
                 raise Exception("Unexpected content in EdgeDriver Zip file!")
             for content in contents:
@@ -984,21 +990,20 @@ def main(override=None, intel_for_uc=None, force_uc=None):
                 # Remove existing version if exists
                 str_name = str(f_name)
                 new_file = os.path.join(downloads_folder, str_name)
-                if IS_MAC or IS_LINUX:
-                    # Mac / Linux
-                    if str_name == "msedgedriver":
-                        driver_file = str_name
-                        driver_path = new_file
-                        if os.path.exists(new_file):
-                            os.remove(new_file)
-                else:
-                    # Windows
-                    if str_name == "msedgedriver.exe":
-                        driver_file = str_name
-                        driver_path = new_file
-                        if os.path.exists(new_file):
-                            os.remove(new_file)
+                if (
+                    ((IS_MAC or IS_LINUX) and str_name == "msedgedriver")
+                    or (
+                        str_name == "msedgedriver.exe"
+                        or str_name == "IEDriverServer.exe"
+                    )
+                ):
+                    driver_file = str_name
+                    driver_path = new_file
+                    if os.path.exists(new_file):
+                        os.remove(new_file)
             if not driver_file or not driver_path:
+                if str_name == "IEDriverServer.exe":
+                    raise Exception("IEDriverServer missing from Zip file!")
                 raise Exception("msedgedriver missing from Zip file!")
             log_d("Extracting %s from %s ..." % (contents, file_name))
             zip_ref.extractall(downloads_folder)
